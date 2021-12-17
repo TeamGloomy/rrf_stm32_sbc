@@ -1,0 +1,11 @@
+# Allwinner H5 quad core 512MB RAM SoC SPI
+BOARD_NAME="Fly - Gemini"
+BOARDFAMILY="sun50iw2"
+BOOTCONFIG="fly_gemini_defconfig"
+DEFAULT_CONSOLE="serial"
+MODULES="g_serial"
+#MODULES_BLACKLIST="lima"
+SERIALCON="ttyS0,ttyGS0"
+DEFAULT_OVERLAYS="spi-spidev uart0 usbhost2 usbhost3"
+BUILD_DESKTOP="no"
+KERNEL_TARGET="current"
