@@ -55,7 +55,7 @@ systemctl enable duetpluginservice-root
 
 # Change DSF configuration according to the board
 sed -i -e 's/"GpioChipDevice": "\/dev\/gpiochip0"/"GpioChipDevice": "\/dev\/gpiochip1"/g' /opt/dsf/conf/config.json
-sed -i -e 's/"TransferReadyPin": 25/"TransferReadyPin": 1/g' /opt/dsf/conf/config.json
+sed -i -e 's/"TransferReadyPin": 25/"TransferReadyPin": 18/g' /opt/dsf/conf/config.json
 
 # Install execonmcode
 wget -q https://github.com/wilriker/execonmcode/releases/download/v5.2.0/execonmcode-arm64 -O /usr/local/bin/execonmcode
