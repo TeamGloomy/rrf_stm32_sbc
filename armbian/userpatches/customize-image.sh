@@ -20,7 +20,7 @@ BUILD_DESKTOP=$4
 ulimit -c 0
 
 # Change Armbian config to add Spidev parameters and activate AppArmor
-echo "param_spidev_spi_bus=1" >> /boot/armbianEnv.txt
+echo "param_spidev_spi_bus=0" >> /boot/armbianEnv.txt
 echo "extraargs=spidev.bufsiz=8192 apparmor=1" >> /boot/armbianEnv.txt
 echo "security=apparmor" >> /boot/armbianEnv.txt
 
