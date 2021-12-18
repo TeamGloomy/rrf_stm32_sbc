@@ -2,7 +2,7 @@
 BOARD_NAME="Fly - Gemini"
 BOARDFAMILY="sun50iw2"
 BOOTCONFIG="fly_gemini_defconfig"
-DEFAULT_CONSOLE="serial"
+DEFAULT_CONSOLE="both"
 MODULES="g_serial"
 #MODULES_BLACKLIST="lima"
 SERIALCON="ttyS0,ttyGS0"
