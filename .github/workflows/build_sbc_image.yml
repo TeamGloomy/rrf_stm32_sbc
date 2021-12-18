@@ -75,7 +75,7 @@ jobs:
       - name: Build image
         run: |
           cd build
-          ./compile.sh VENDOR="${VENDOR}" MAINTAINER="${MAINTAINER}" MAINTAINERMAIL="${MAINTAINERMAIL}" BOARD="${{ github.event.inputs.board }}" BRANCH=current RELEASE="${ARMBIAN_CODENAME}" BUILD_MINIMAL=no BUILD_DESKTOP=no KERNEL_ONLY=no KERNEL_CONFIGURE=no COMPRESS_OUTPUTIMAGE=sha,xz
+          ./compile.sh VENDOR="${VENDOR}" MAINTAINER="${MAINTAINER}" MAINTAINERMAIL="${MAINTAINERMAIL}" BOARD="${{ github.event.inputs.board }}" BRANCH=current RELEASE="${ARMBIAN_CODENAME}" BUILD_MINIMAL=no BUILD_DESKTOP=no KERNEL_ONLY=no KERNEL_CONFIGURE=no BOOTFS_TYPE=fat COMPRESS_OUTPUTIMAGE=sha,xz
           
       # Compress files for release artifact
       - name: Compress files
