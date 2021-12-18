@@ -62,6 +62,10 @@ echo "param_spidev_spi_bus=0" >> /boot/armbianEnv.txt
 echo "extraargs=spidev.bufsiz=8192 apparmor=1" >> /boot/armbianEnv.txt
 echo "security=apparmor" >> /boot/armbianEnv.txt
 
+# Install packages to enable mDNS to resolve <hostname>.local
+display_alert "Install required packages to enable mDNS"
+apt-get -y -qq install avahi-daemon libnss-mdns libnss-mymachines
+
 # Install Duet sources to APT
 display_alert "Install Duet sources to APT"
 wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
