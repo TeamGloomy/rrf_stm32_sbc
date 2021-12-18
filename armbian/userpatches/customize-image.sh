@@ -57,6 +57,9 @@ systemctl enable duetpluginservice-root
 sed -i -e 's/"GpioChipDevice": "\/dev\/gpiochip0"/"GpioChipDevice": "\/dev\/gpiochip1"/g' /opt/dsf/conf/config.json
 sed -i -e 's/"TransferReadyPin": 25/"TransferReadyPin": 18/g' /opt/dsf/conf/config.json
 
+# Change machine name to match hostname
+sed -i -e "s/M550 P\"Duet 3\"/\"M550 P\"$(head -n 1 /etc/hostname)\"/g" /opt/dsf/sd/sys/config.g
+
 # Install execonmcode
 wget -q https://github.com/wilriker/execonmcode/releases/download/v5.2.0/execonmcode-arm64 -O /usr/local/bin/execonmcode
 chmod a+x /usr/local/bin/execonmcode
