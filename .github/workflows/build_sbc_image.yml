@@ -1,0 +1,117 @@
+name: Build SBC image
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+      inputs:
+        release:
+          type: boolean
+          description: |
+            Create new release.
+            Default is to create workflow artifact
+        board:
+          type: choice
+          description: Board to build image for
+          required: true
+          options:
+          - "fly-gemini"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MAINTAINER: "TeamGloomy"
+      MAINTAINERMAIL: "teamgloomyrrf@gmail.com"
+      ARMBIAN_CODENAME: bullseye
+
+    steps:
+      # Checkout Armbian build script
+      - name: Checkout Armbian build script
+        uses: actions/checkout@v2
+        with:
+          repository: armbian/build
+          #ref: v21.08
+          path: build # local path
+
+      # Checkout TeamGloomy supported boards
+      - name: Checkout TeamGloomy supported boards
+        uses: actions/checkout@master
+        with:
+          repository: TeamGloomy/rrf_stm32_sbc
+          path: rrf_stm32_sbc # local path
+
+      # Merge supported boards into Armbian build environment
+      - name: Merge supported boards into Armbian build environment
+        run: |
+          sudo mkdir -p ./build/userpatches
+          sudo cp -R ./rrf_stm32_sbc/armbian/userpatches/* ./build/userpatches/
+          sudo cp -R ./rrf_stm32_sbc/armbian/config/boards/* ./build/config/boards/
+          
+          # cleaning leftovers if any
+          rm -rf ./build/output/images/*
+          
+      # Get current RRF stable version
+      - name: Get current RRF stable version
+        run: |
+          # Add Duet sources to APT
+          sudo wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
+          sudo wget -q https://pkg.duet3d.com/duet3d.list -O /etc/apt/sources.list.d/duet3d.list
+          sudo apt-get -y -qq install apt-transport-https
+          # Check for arm64 packages while runner host is amd64
+          sudo dpkg --add-architecture arm64
+          sudo apt update -o APT::Architecture="arm64" -o APT::Architectures="arm64" -o Dir::Etc::sourcelist="sources.list.d/duet3d.list"
+          # Get Candidate version as DSF isn't installed on runner system: Line 3 => sed -n '3p'
+          RRF_VERSION=$(sudo apt-cache policy duetsoftwareframework | sed -n '3p' | awk -F ': ' '{print $2}')
+          # Add DSF_VERSION to environment variables
+          echo "DSF_VERSION=$RRF_VERSION" >> $GITHUB_ENV
+          # Delete arm64 arch because compile script will use APT and runner system is amd64
+          #sudo apt-get purge ".*:arm64"
+          sudo dpkg --remove-architecture arm64
+          sudo rm /etc/apt/sources.list.d/duet3d.list
+          echo "Current RRF version is $RRF_VERSION"
+          echo "VENDOR=RRF-$RRF_VERSION" >> $GITHUB_ENV
+          
+      # Run Armbian compile script
+      - name: Build image
+        run: |
+          cd build
+          ./compile.sh VENDOR="${VENDOR}" MAINTAINER="${MAINTAINER}" MAINTAINERMAIL="${MAINTAINERMAIL}" BOARD="${{ github.event.inputs.board }}" BRANCH=current RELEASE="${ARMBIAN_CODENAME}" BUILD_MINIMAL=no BUILD_DESKTOP=no KERNEL_ONLY=no KERNEL_CONFIGURE=no COMPRESS_OUTPUTIMAGE=sha,xz
+          
+      # Compress files for release artifact
+      - name: Compress files
+        if: ${{ github.event.inputs.release == 'true' }}
+        run: |
+          zip --junk-paths my-artifact ./build/output/images/*
+          
+      # Upload generated image as action artifact
+      - name: Upload build images
+        if: ${{ github.event.inputs.release == 'false' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: RRF-${{ env.DSF_VERSION }}_Armbian-${{ env.ARMBIAN_CODENAME }}_${{ github.event.inputs.board }}
+          path: ./build/lib/
+
+      # Create release
+      - name: Create release
+        if: ${{ github.event.inputs.release == 'true' }}
+        uses: actions/create-release@v1
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.DSF_VERSION }}_${{ github.event.inputs.board }}
+          release_name: RRF-${{ env.DSF_VERSION }}_Armbian-${{ env.ARMBIAN_CODENAME }}_${{ github.event.inputs.board }}
+          draft: false
+          prerelease: false
+
+      # Upload compressed files to release
+      - name: Upload generated image artifact
+        if: ${{ github.event.inputs.release == 'true' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./my-artifact.zip
+          asset_name: RRF-${{ env.DSF_VERSION }}_Armbian-${{ env.ARMBIAN_CODENAME }}_${{ github.event.inputs.board }}.zip
+          asset_content_type: application/zip
