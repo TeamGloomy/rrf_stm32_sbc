@@ -38,10 +38,12 @@ main()
     echo "-----Installing packages-----"
     unhold_packages
     apt-get -y install --allow-downgrades \
-        duetsoftwareframework=${RRF_VERSION} \
         duetcontrolserver=${RRF_VERSION} \
+        duetpluginservice=${RRF_VERSION} \
+        duetpimanagementplugin=${RRF_VERSION} \
         duetruntime=${RRF_VERSION} \
         duetsd=1.1.0 \
+        duetsoftwareframework=${RRF_VERSION} \
         duettools=${RRF_VERSION} \
         duetwebcontrol=${RRF_VERSION} \
         duetwebserver=${RRF_VERSION} \
@@ -74,10 +76,12 @@ restore_board_conf()
 hold_packages()
 {
     apt-mark hold \
-        duetsoftwareframework \
         duetcontrolserver \
+        duetpluginservice \
+        duetpimanagementplugin \
         duetruntime \
         duetsd \
+        duetsoftwareframework \
         duettools \
         duetwebcontrol \
         duetwebserver \
@@ -87,10 +91,12 @@ hold_packages()
 unhold_packages()
 {
     apt-mark unhold \
-        duetsoftwareframework \
         duetcontrolserver \
+        duetpluginservice \
+        duetpimanagementplugin \
         duetruntime \
         duetsd \
+        duetsoftwareframework \
         duettools \
         duetwebcontrol \
         duetwebserver \
