@@ -15,7 +15,7 @@ fi
 
 if [[ "${EUID}" -ne "0" ]]; then
     echo "This script requires root privileges, trying to use sudo"
-    sudo "${SRC}/rrf_upgrade.sh" "$@"
+    sudo "$0" "$@"
     exit $?
 fi
 
@@ -30,14 +30,14 @@ main()
     echo "-----Upgrade and Update finished-----"
     add_duet_repo
     echo "-----Updating packages list-----"
-    apt -q update
+    apt-get -q update
     echo "-----Updating packages finished-----"
     # Backup the config file prior to mess with
     backup_board_conf
     stop_rrf_services
     echo "-----Installing packages-----"
     unhold_packages
-    apt install --allow-downgrades \
+    apt-get -y install --allow-downgrades \
         duetsoftwareframework=${RRF_VERSION} \
         duetcontrolserver=${RRF_VERSION} \
         duetruntime=${RRF_VERSION} \
@@ -45,7 +45,7 @@ main()
         duettools=${RRF_VERSION} \
         duetwebcontrol=${RRF_VERSION} \
         duetwebserver=${RRF_VERSION} \
-        reprapfirmware=${RRF_VERSION}-1 \
+        reprapfirmware=${RRF_VERSION}-1
     hold_packages
     echo "-----Installing packages finished-----"
     restore_board_conf
