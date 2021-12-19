@@ -131,6 +131,7 @@ apt-get -y -qq install picocom
 echo "alias stmusb=\"picocom -c --imap lfcrlf /dev/ttyACM0\"" >> /etc/profile.d/00-rrf.sh
 
 # Add user to tty (for picocom) and dsf group once adduser is done
-echo "usermod -aG dsf $1" >> /usr/local/sbin/adduser.local
-echo "usermod -aG tty $1" >> /usr/local/sbin/adduser.local
+# NB: use simple-quote as $1 doesn't get expanded here
+echo 'usermod -aG dsf $1' >> /usr/local/sbin/adduser.local
+echo 'usermod -aG tty $1' >> /usr/local/sbin/adduser.local
 chmod u+x /usr/local/sbin/adduser.local
