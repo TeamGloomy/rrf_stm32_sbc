@@ -62,6 +62,10 @@ echo "param_spidev_spi_bus=0" >> /boot/armbianEnv.txt
 echo "extraargs=spidev.bufsiz=8192 apparmor=1" >> /boot/armbianEnv.txt
 echo "security=apparmor" >> /boot/armbianEnv.txt
 
+# Disable Armbian ram logging service
+display_alert "Disable Armbian ram logging service"
+sed -i -e 's/ENABLED=true/ENABLED=false/g' /etc/default/armbian-ramlog
+
 # Install packages to enable mDNS to resolve <hostname>.local
 display_alert "Install required packages to enable mDNS"
 apt-get -y -qq install avahi-daemon libnss-mdns libnss-mymachines
@@ -99,10 +103,15 @@ systemctl enable duetwebserver
 systemctl enable duetpluginservice
 systemctl enable duetpluginservice-root
 
+# Install rrf_upgrade script
+cp /tmp/overlay/rrf_upgrade.sh /usr/local/bin/rrf_upgrade
+chmod a+x /usr/local/bin/rrf_upgrade
+
 # Change DSF configuration according to the board
 display_alert "Change DSF configuration according to the board"
-sed -i -e 's/"GpioChipDevice": "\/dev\/gpiochip0"/"GpioChipDevice": "\/dev\/gpiochip1"/g' /opt/dsf/conf/config.json
-sed -i -e 's/"TransferReadyPin": 25/"TransferReadyPin": 18/g' /opt/dsf/conf/config.json
+sed -i -e 's|"SpiDevice": .*,|"SpiDevice": "/dev/spidev0.0",|g' /opt/dsf/conf/config.json
+sed -i -e 's|"GpioChipDevice": .*,|"GpioChipDevice": "/dev/gpiochip1",|g' /opt/dsf/conf/config.json
+sed -i -e 's|"TransferReadyPin": .*,|"TransferReadyPin": 18,|g' /opt/dsf/conf/config.json
 
 # Change machine name to match hostname
 display_alert "Change machine name to match hostname"
@@ -116,3 +125,12 @@ chmod a+x /usr/local/bin/execonmcode
 display_alert "Install Duet API listener" 
 wget -q https://raw.githubusercontent.com/wilriker/execonmcode/master/shutdownsbc.service -O /etc/systemd/system/shutdownsbc.service
 systemctl enable shutdownsbc.service
+
+# Install picocom to get USB-to-serial communication with the MCU
+apt-get -y -qq install picocom
+echo "alias stmusb=\"picocom -c --imap lfcrlf /dev/ttyACM0\"" >> /etc/profile.d/00-rrf.sh
+
+# Add user to tty (for picocom) and dsf group once adduser is done
+echo "usermod -aG dsf $1" >> /usr/local/sbin/adduser.local
+echo "usermod -aG tty $1" >> /usr/local/sbin/adduser.local
+chmod u+x /usr/local/sbin/adduser.local
