@@ -1,7 +1,7 @@
 #!/bin/bash
 VERSION="0.0.2"
 
-SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/main/armbian/userpatches/overlay/rrf_upgrade.sh"
+SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
 SELF_UPDATER_SCRIPT=/tmp/rrf_selfupdater.sh
 
