@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.1"
+VERSION="0.0.2"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/main/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -106,7 +106,7 @@ unhold_packages()
 add_duet_repo()
 {
     echo "-----Switching to the unstable branch-----"
-    wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/
+    wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
     wget -q https://pkg.duet3d.com/duet3d-unstable.list -O /etc/apt/sources.list.d/duet3d-unstable.list
     rm /etc/apt/sources.list.d/duet3d.list
     echo "-----Switching to the unstable branch finished-----"
