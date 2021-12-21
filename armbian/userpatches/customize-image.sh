@@ -78,6 +78,8 @@ sed -i -e 's%TERM=linux toilet -f standard -F metal $(echo $BOARD_NAME | sed '"'
 display_alert "Install required packages to enable mDNS"
 apt-get -y -qq install avahi-daemon libnss-mdns libnss-mymachines
 
+apt-get -y -qq install gpiod
+
 # Install Duet sources to APT
 display_alert "Install Duet sources to APT"
 wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
