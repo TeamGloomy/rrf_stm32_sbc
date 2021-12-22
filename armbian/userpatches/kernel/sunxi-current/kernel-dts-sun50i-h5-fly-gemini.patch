@@ -3,7 +3,7 @@ new file mode 100755
 index 000000000..71b69c355
 --- /dev/null
 +++ b/arch/arm64/boot/dts/allwinner/sun50i-h5-fly-gemini.dts
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,224 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 +// Copyright (C) 2021 Loïc GRENON <loic.grenon@difoolou.net>
 +
@@ -36,8 +36,15 @@ index 000000000..71b69c355
 +		};
 +
 +		led-status {
-+			label = "gemini:red:status";
++			label = "gemini:green:status";
 +			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
++			linux,default-trigger = "heartbeat";
++		};
++
++		led-usr {
++			label = "gemini:green:status";
++			gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
++			linux,default-trigger = "mmc0";
 +		};
 +	};
 +	
