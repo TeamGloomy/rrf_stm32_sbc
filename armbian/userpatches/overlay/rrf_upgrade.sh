@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.2"
+VERSION="0.0.3"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -13,7 +13,7 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-if [[ "${EUID}" -ne "0" ]]; then
+if [ "${EUID}" -ne "0" ]; then
     echo "This script requires root privileges, trying to use sudo"
     sudo "$0" "$@"
     exit $?
@@ -37,7 +37,15 @@ main()
     stop_rrf_services
     echo "-----Installing packages-----"
     unhold_packages
-    apt-get -y install --allow-downgrades \
+    if [ "$DCS_CONF_CHANGED_BY_USER" == "0" ];
+    then
+        # Changes were previously made by the script only (no user change)
+        # automatically accept the new config file if any
+        FORCE_CONFNEW="-o Dpkg::Options::=--force-confnew"
+    else
+        FORCE_CONFNEW=""
+    fi
+    apt-get -y install --allow-downgrades $FORCE_CONFNEW \
         duetcontrolserver=${RRF_VERSION} \
         duetpluginservice=${RRF_VERSION} \
         duetpimanagementplugin=${RRF_VERSION} \
@@ -57,6 +65,11 @@ main()
 backup_board_conf()
 {
     echo "-----Backup board configuration-----"
+    # Check if configuration has been changed since installation
+    INSTALLED_CONF_CHECKSUM=$(cat /var/lib/dpkg/info/duetcontrolserver.md5sums | grep opt/dsf/conf/config.json | awk 'NR==1{print $1}')
+    CUR_CONF_CHECKSUM=$(md5sum /opt/dsf/conf/config.json | awk 'NR==1{print $1}')
+    DCS_CONF_CHANGED_BY_USER=0; [ "$CUR_CONF_CHECKSUM" != "$INSTALLED_CONF_CHECKSUM" ] && DCS_CONF_CHANGED_BY_USER=1
+
     cp "$DSF_CONF" "$DSF_CONF.bak"
     SPI_DEVICE="$(grep "^\s\+\"SpiDevice" $DSF_CONF | awk -F': "' '{print $2}')"
     GPIO_CHIP_DEVICE="$(grep "^\s\+\"GpioChipDevice" $DSF_CONF | awk -F': "' '{print $2}')"
@@ -70,6 +83,9 @@ restore_board_conf()
     sed -i -e 's|"SpiDevice": .*,|"SpiDevice": "'"${SPI_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"GpioChipDevice": .*,|"GpioChipDevice": "'"${GPIO_CHIP_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"TransferReadyPin": .*,|"TransferReadyPin": '"${TRANSFER_READY_PIN}"'|g' "$DSF_CONF"
+
+    # Update the package checksum as we could check if the configuration file was modified by the user on the next upgrade
+    sed -i -e "s%.*opt/dsf/conf/config.json%$(md5sum /opt/dsf/conf/config.json | awk 'NR==1{print $1}')  opt/dsf/conf/config.json%g" /var/lib/dpkg/info/duetcontrolserver.md5sums
     echo "-----Restore board configuration finished-----"
 }
 
