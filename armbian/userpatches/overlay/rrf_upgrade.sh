@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.4"
+VERSION="0.0.5"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -37,14 +37,6 @@ main()
     stop_rrf_services
     echo "-----Installing packages-----"
     unhold_packages
-    if [ "$DCS_CONF_CHANGED_BY_USER" == "0" ];
-    then
-        # Changes were previously made by the script only (no user change)
-        # automatically accept the new config file if any
-        FORCE_CONFNEW="-o Dpkg::Options::=--force-confnew"
-    else
-        FORCE_CONFNEW=""
-    fi
     install_packages
     hold_packages
     echo "-----Installing packages finished-----"
@@ -147,15 +139,29 @@ install_packages()
 {
     if [ "${RRF_VERSION}" == "latest-stable" ] || [ "${RRF_VERSION}" == "latest-unstable" ];
     then
-        apt-get -y install --allow-downgrades $FORCE_CONFNEW \
+        apt-get -y install --allow-downgrades -o Dpkg::Options::=--force-confnew \
+            duetcontrolserver \
             duetpluginservice \
             duetpimanagementplugin \
-            duetsoftwareframework
+            duetruntime \
+            duetsd \
+            duetsoftwareframework \
+            duettools \
+            duetwebcontrol \
+            duetwebserver \
+            reprapfirmware
     else
-        apt-get -y install --allow-downgrades $FORCE_CONFNEW \
+        apt-get -y install --allow-downgrades -o Dpkg::Options::=--force-confnew \
+            duetcontrolserver=${RRF_VERSION} \
             duetpluginservice=${RRF_VERSION} \
             duetpimanagementplugin=${RRF_VERSION} \
-            duetsoftwareframework=${RRF_VERSION}
+            duetruntime=${RRF_VERSION} \
+            duetsd=1.1.0 \
+            duetsoftwareframework=${RRF_VERSION} \
+            duettools=${RRF_VERSION} \
+            duetwebcontrol=${RRF_VERSION} \
+            duetwebserver=${RRF_VERSION} \
+            reprapfirmware=${RRF_VERSION}-1
     fi
 }
 
