@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: RRF-${{ env.DSF_VERSION }}_Armbian-${{ env.ARMBIAN_CODENAME }}_${{ github.event.inputs.board }}
-          path: ./build/lib/
+          path: ./build/output/images/
 
       # Create release
       - name: Create release
