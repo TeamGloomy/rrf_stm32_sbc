@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.5"
+VERSION="0.0.6"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -24,10 +24,10 @@ RRF_VERSION="$1"
 main()
 {
     echo "-----This will install the Duet packages for ${RRF_VERSION} -----"
-    echo "-----Update and upgrade the SBC system-----"
+#    echo "-----Update and upgrade the SBC system-----"
     hold_packages
-    apt-get -q update && apt-get -y upgrade
-    echo "-----Upgrade and Update finished-----"
+#    apt-get -q update && apt-get -y upgrade
+#    echo "-----Upgrade and Update finished-----"
     add_duet_repo
     echo "-----Updating packages list-----"
     apt-get -q update
