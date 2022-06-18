@@ -52,6 +52,9 @@ display_alert()
     esac
 }
 
+# Ensure the DTB package can't be updated as it would lead to a broken system
+apt-mark hold linux-dtb-current-sunxi64
+
 # Disable core dumps because DSF keep crashing in qemu static
 display_alert "Disable core dumps"
 ulimit -c 0
