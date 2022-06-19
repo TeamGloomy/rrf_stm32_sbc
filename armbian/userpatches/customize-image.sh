@@ -93,6 +93,7 @@ apt-get update
 # Install Duet packages
 display_alert "Install Duet packages"
 apt-get -y -qq install \
+    apparmor \
     duetsoftwareframework \
     duetpluginservice \
     duetpimanagementplugin
