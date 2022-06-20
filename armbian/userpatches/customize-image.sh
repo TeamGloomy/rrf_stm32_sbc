@@ -117,7 +117,18 @@ systemctl enable duetwebserver
 systemctl enable duetpluginservice
 systemctl enable duetpluginservice-root
 
+chown -R "dsf:dsf" /opt/dsf
+
+# Install 3rd-party DWC plugins
+display_alert "Install 3rd-party plugins"
+# Install pip and python modules needed for installation scripts
+apt-get -y -qq install python3-pip
+pip3 install requests
+# Install BtnCmd plugin
+python3 /tmp/overlay/BtnCmd_plugin_install.py
+
 # Install rrf_upgrade script
+display_alert "Install RRF upgrade script"
 cp /tmp/overlay/rrf_upgrade.sh /usr/local/bin/rrf_upgrade
 chmod a+x /usr/local/bin/rrf_upgrade
 
