@@ -128,6 +128,19 @@ pip3 install requests
 # Install BtnCmd plugin
 python3 /tmp/overlay/BtnCmd_plugin_install.py
 
+# Install BtnCmd SBCC plugin
+display_alert "Install BtnCmd SBCC plugin"
+wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCC_Main.py -O /opt/dsf/plugins/BtnCmd/dwc/SBCC_Main.py
+chown "dsf:dsf" /opt/dsf/plugins/BtnCmd/dwc/SBCC_Main.py
+wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCC_Default_Cmds.json -O /opt/dsf/sd/sys/SBCC_Default_Cmds.json
+chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
+cp /tmp/overlay/SBCC_Default_Cmds.json /opt/dsf/sd/sys/
+chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
+cp /tmp/overlay/SBCC_Config.json /opt/dsf/sd/sys/
+chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Config.json
+wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCCSvs.service -O /etc/systemd/system/SBCCSvs.service
+systemctl enable SBCCSvs.service
+
 # Install rrf_upgrade script
 display_alert "Install RRF upgrade script"
 cp /tmp/overlay/rrf_upgrade.sh /usr/local/bin/rrf_upgrade
