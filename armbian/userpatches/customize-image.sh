@@ -132,14 +132,21 @@ python3 /tmp/overlay/BtnCmd_plugin_install.py
 display_alert "Install BtnCmd SBCC plugin"
 wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCC_Main.py -O /opt/dsf/plugins/BtnCmd/dwc/SBCC_Main.py
 chown "dsf:dsf" /opt/dsf/plugins/BtnCmd/dwc/SBCC_Main.py
-wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCC_Default_Cmds.json -O /opt/dsf/sd/sys/SBCC_Default_Cmds.json
-chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
-cp /tmp/overlay/SBCC_Default_Cmds.json /opt/dsf/sd/sys/
-chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
+
 cp /tmp/overlay/SBCC_Config.json /opt/dsf/sd/sys/
 chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Config.json
+
+cp /tmp/overlay/BtnCmdAutoRestore.json /opt/dsf/sd/sys/
+chown "dsf:dsf" /opt/dsf/sd/sys/BtnCmdAutoRestore.json
+
+cp /tmp/overlay/SBCC_Default_Cmds.json /opt/dsf/sd/sys/
+chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
+
 wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCCSvs.service -O /etc/systemd/system/SBCCSvs.service
 systemctl enable SBCCSvs.service
+
+echo '{"machine":{"enabledPlugins":["BtnCmd"]}}' > /opt/dsf/sd/sys/dwc-settings.json
+chown "dsf:dsf" /opt/dsf/sd/sys/dwc-settings.json
 
 # Install rrf_upgrade script
 display_alert "Install RRF upgrade script"
