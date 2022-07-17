@@ -6,7 +6,7 @@
             "SBCC_Cmd_CmdText" : "reboot",
             "Enable_In_Job": true,
             "SBCC_Cmd_Timeout" : 30,
-            "SBCC_ShowResult": true
+            "SBCC_ShowResult": false
         },
         {
             "SBCC_Cmd_ID": 2,
@@ -14,15 +14,7 @@
             "SBCC_Cmd_CmdText" : "shutdown -h now",
             "Enable_In_Job": true,
             "SBCC_Cmd_Timeout" : 30,
-            "SBCC_ShowResult": true
-        },
-        {
-            "SBCC_Cmd_ID": 3,
-            "SBCC_Cmd_Name": "Upgrade system",
-            "SBCC_Cmd_CmdText" : "apt-get -q update && apt-get -y upgrade",
-            "Enable_In_Job": true,
-            "SBCC_Cmd_Timeout" : 30,
-            "SBCC_ShowResult": true
+            "SBCC_ShowResult": false
         }
     ]
 }
