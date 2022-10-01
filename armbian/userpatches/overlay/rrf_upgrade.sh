@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.6"
+VERSION="0.0.7"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -7,6 +7,8 @@ SELF_UPDATER_SCRIPT=/tmp/rrf_selfupdater.sh
 
 SRC="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 DSF_CONF=/opt/dsf/conf/config.json
+
+FW_DOWNLOAD_TEMP_DIR="/tmp/teamgloomy_fw_temp"
 
 if [ $# -lt 1 ]; then
     echo "Usage: rrf_upgrade <RRF_version>. Example: rrf_upgrade 3.4-b7 or rrf_upgrade latest-stable or rrf_upgrade latest-unstable"
@@ -32,6 +34,9 @@ main()
     echo "-----Updating packages list-----"
     apt-get -q update
     echo "-----Updating packages finished-----"
+    echo "-----Downloading TeamGloomy firmware-----"
+    get_teamgloomy_fw
+    echo "-----Downloading TeamGloomy firmware finished-----"
     # Backup the config file prior to mess with
     backup_board_conf
     stop_rrf_services
@@ -191,6 +196,71 @@ restart_rrf_services()
     /opt/dsf/bin/PluginManager -q reload DuetPiManagementPlugin
     /opt/dsf/bin/PluginManager -q start DuetPiManagementPlugin
     echo "-----Starting Duet services finished-----"
+}
+
+install_teamgloomy_fw_files()
+{
+    for FILE in `find "${FW_DOWNLOAD_TEMP_DIR}" -maxdepth 1 -type f`
+    do
+        FILENAME=$(basename ${FILE})
+        if [[ "$FILENAME" =~ firmware-.*-sbc-.*\.bin ]]
+        then
+            if [ ${RRF_VERSION} == '3.4.1' ]
+            then
+                # Rename firmware-mcutype-sbc-version.bin files into firmware-mcutype.bin (Specific to 3.4.1)
+                echo "Move ${FW_DOWNLOAD_TEMP_DIR}"/"${FILENAME} to /opt/dsf/sd/firmware/"${FILENAME%-*}.bin""
+                mv "${FW_DOWNLOAD_TEMP_DIR}"/"${FILENAME}" /opt/dsf/sd/firmware/"${FILENAME%-*}.bin"
+            else
+                # Rename firmware-mcutype-sbc-version.bin files into firmware-mcutype-sbc.bin
+                echo "Move ${FW_DOWNLOAD_TEMP_DIR}"/"${FILENAME} to /opt/dsf/sd/firmware/"${FILENAME%-*-*}.bin""
+                mv "${FW_DOWNLOAD_TEMP_DIR}"/"${FILENAME}" /opt/dsf/sd/firmware/"${FILENAME%-*-*}.bin"
+            fi
+        else
+            echo "Move ${FILE} to /opt/dsf/sd/firmware/"${FILENAME}""
+            mv ${FILE} /opt/dsf/sd/firmware/
+        fi
+    done
+}
+
+get_teamgloomy_fw()
+{
+    if [ "${RRF_VERSION}" == "latest-stable" ] || [ "${RRF_VERSION}" == "latest_stable" ]
+    then
+        # Get the most recent non-prerelease, non-draft release
+        FW_REPO="https://api.github.com/repos/gloomyandy/RepRapFirmware/releases/latest"
+        RELEASE_DATA=$(curl -s "${FW_REPO}")
+    elif [ "${RRF_VERSION}" == "latest-unstable" ] || [ "${RRF_VERSION}" == "latest_unstable" ]
+    then
+        # Get the most recent release
+        FW_REPO="https://api.github.com/repos/gloomyandy/RepRapFirmware/releases"
+        RELEASE_DATA=$(curl -s "${FW_REPO}" | jq '.[0]')
+    else
+        # Get the release for a specific version
+        FW_REPO="https://api.github.com/repos/gloomyandy/RepRapFirmware/releases"
+        # Get data related to the last teamgloomy release for the selected Duet version
+        RELEASE_DATA=$(curl -s "${FW_REPO}" | jq '.[] | select(.tag_name? | match("v'${RRF_VERSION}'_.*"))')
+    fi
+    # Get SBC related zip files for that release
+    # NB: using jq -r to remove quotes for wget to work
+    ASSETS_URLS=$(echo "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*.zip")) | .browser_download_url')
+
+    if [ -z ${ASSETS_URLS} ]
+    then
+        echo -e "\033[0;31mWarning: No teamgloomy firmware found for ${RRF_VERSION}\033[0m"
+    else
+        mkdir -p "${FW_DOWNLOAD_TEMP_DIR}"
+        for url in ${ASSETS_URLS}
+        do
+            echo "Download TeamGloomy firmware archive from ${url}:"
+            wget -q -nc --show-progress "${url}" -O teamgloomy_fw.zip
+            unzip -o -d "${FW_DOWNLOAD_TEMP_DIR}" teamgloomy_fw.zip
+            rm teamgloomy_fw.zip
+
+            chown "dsf:dsf" "${FW_DOWNLOAD_TEMP_DIR}"/*
+            install_teamgloomy_fw_files
+        done
+        rm -rf "${FW_DOWNLOAD_TEMP_DIR}"
+    fi
 }
 
 self-update()
