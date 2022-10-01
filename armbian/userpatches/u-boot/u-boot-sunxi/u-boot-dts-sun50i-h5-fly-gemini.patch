@@ -18,8 +18,8 @@ index 00000000..71b69c35
 +
 +	aliases {
 +		ethernet0 = &emac;
-+   serial0 = &uart0;
-+   serial1 = &uart1;
++		serial0 = &uart0;
++		serial1 = &uart1;
 +	};
 +
 +	chosen {
@@ -42,7 +42,7 @@ index 00000000..71b69c35
 +		};
 +
 +		led-usr {
-+			label = "gemini:green:status";
++			label = "gemini:green:usr";
 +			gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
 +			linux,default-trigger = "mmc0";
 +		};
