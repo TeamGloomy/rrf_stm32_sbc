@@ -79,6 +79,10 @@ sed -i -e 's%TERM=linux toilet -f standard -F metal $(echo $BOARD_NAME | sed '"'
 sed -i -e 's%echo -e "\\e\[0;91mNo end-user support: \\x1B\[0m$UNSUPPORTED_TEXT\\n"%echo -e "For support, please join the TeamGloomy Discord: https://discord.gg/uS97Qs7\n"%g' /etc/update-motd.d/10-armbian-header
 
 # Install packages to enable mDNS to resolve <hostname>.local
+display_alert "Update packages list"
+apt-get update
+
+# Install packages to enable mDNS to resolve <hostname>.local
 display_alert "Install required packages to enable mDNS"
 apt-get -y -qq install avahi-daemon libnss-mdns libnss-mymachines
 
