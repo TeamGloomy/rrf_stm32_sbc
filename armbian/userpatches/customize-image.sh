@@ -129,8 +129,8 @@ display_alert "Install 3rd-party plugins"
 # Install pip and python modules needed for installation scripts
 apt-get -y -qq install python3-pip
 pip3 install requests dsf-python
-# Install BtnCmd plugin
-python3 /tmp/overlay/BtnCmd_plugin_install.py
+# Install plugins
+python3 /tmp/overlay/plugins_install.py
 
 # Install BtnCmd SBCC plugin
 display_alert "Install BtnCmd SBCC plugin"
@@ -163,18 +163,12 @@ sed -i -e 's|"SpiDevice": .*,|"SpiDevice": "/dev/spidev0.0",|g' /opt/dsf/conf/co
 sed -i -e 's|"GpioChipDevice": .*,|"GpioChipDevice": "/dev/gpiochip1",|g' /opt/dsf/conf/config.json
 sed -i -e 's|"TransferReadyPin": .*,|"TransferReadyPin": 18,|g' /opt/dsf/conf/config.json
 
+# Change configurator URL in config.g header
+sed -i -e "s/https:\/\/configtool.reprapfirmware.org/https:\/\/teamgloomy.github.io\/Configurator/g" /opt/dsf/sd/sys/config.g
+
 # Change machine name to match hostname
 display_alert "Change machine name to match hostname"
 sed -i -e "s/M550 P\"Duet 3\"/\"M550 P\"$(head -n 1 /etc/hostname)\"/g" /opt/dsf/sd/sys/config.g
-
-# Install execonmcode
-display_alert "Install execonmcode"
-wget -q https://github.com/wilriker/execonmcode/releases/download/v5.2.0/execonmcode-arm64 -O /usr/local/bin/execonmcode
-chmod a+x /usr/local/bin/execonmcode
-# Install Duet API listener to shutdown the SBC
-display_alert "Install Duet API listener" 
-wget -q https://raw.githubusercontent.com/wilriker/execonmcode/master/shutdownsbc.service -O /etc/systemd/system/shutdownsbc.service
-systemctl enable shutdownsbc.service
 
 # Install picocom to get USB-to-serial communication with the MCU
 apt-get -y -qq install picocom
