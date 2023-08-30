@@ -128,7 +128,7 @@ chown -R "dsf:dsf" /opt/dsf
 display_alert "Install 3rd-party plugins"
 # Install pip and python modules needed for installation scripts
 apt-get -y -qq install python3-pip
-pip3 install requests
+pip3 install requests dsf-python
 # Install BtnCmd plugin
 python3 /tmp/overlay/BtnCmd_plugin_install.py
 
