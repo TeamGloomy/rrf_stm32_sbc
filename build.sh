@@ -17,8 +17,11 @@ git clone --depth 1 https://github.com/armbian/build
 
 # Merge supported boards into Armbian build environment
 mkdir -p ./build/userpatches
-cp -R ./armbian/userpatches/* ./build/userpatches/
 cp -R ./armbian/config/boards/* ./build/config/boards/
+cp -R ./armbian/userpatches/* ./build/userpatches/
+# Path for kernel user patches : 
+# Sunxi64 : KERNELPATCHDIR="archive/sunxi-${KERNEL_MAJOR_MINOR}"
+# https://github.com/armbian/build/blob/main/config/sources/families/include/sunxi64_common.inc#L41
 
 # cleaning leftovers if any
 rm -rf ./build/output/images/*
