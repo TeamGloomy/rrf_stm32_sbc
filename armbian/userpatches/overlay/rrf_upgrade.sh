@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.7"
+VERSION="0.0.8"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -242,7 +242,7 @@ get_teamgloomy_fw()
     fi
     # Get SBC related zip files for that release
     # NB: using jq -r to remove quotes for wget to work
-    ASSETS_URLS=$(echo "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*.zip")) | .browser_download_url')
+    ASSETS_URLS=$(echo -E "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*.zip")) | .browser_download_url')
 
     if [ -z ${ASSETS_URLS} ]
     then
