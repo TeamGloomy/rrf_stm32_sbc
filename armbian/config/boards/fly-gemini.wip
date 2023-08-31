@@ -10,3 +10,38 @@ DEFAULT_OVERLAYS="spi-spidev usbhost2 usbhost3"
 BUILD_DESKTOP="no"
 KERNEL_TARGET="current"
 BOOTFS_TYPE="fat"
+
+
+function pre_customize_image__download_rrf_firmware() {
+	display_alert "Download ReprapFirmware ${VENDOR} image for the board from GloomyAndy's repo" "info"
+
+	declare -g RRF_VERSION=${VENDOR}
+	declare -g RRF_MCU_TYPE="stm32f4"
+	get_teamgloomy_fw
+}
+
+
+get_teamgloomy_fw()
+{
+    # Get the release for a specific version
+    local FW_REPO="https://api.github.com/repos/gloomyandy/RepRapFirmware/releases"
+    # Get data related to the last teamgloomy release for the selected Duet version
+    local RELEASE_DATA=$(curl -s "${FW_REPO}" | jq '.[] | select(.tag_name? | match("v'${RRF_VERSION}'_.*"))')
+    # Get SBC related zip files for that release
+    # NB: using jq -r to remove quotes for wget to work
+    local ASSETS_URLS=$(echo -E "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-'${RRF_MCU_TYPE}'-sbc-.*.bin")) | .browser_download_url')
+
+    local FW_DOWNLOAD_DIR="${SDCARD}/usr/lib/teamgloomy/firmware"
+
+    if [ -z ${ASSETS_URLS} ]
+    then
+        display_alert "No teamgloomy firmware found for ${RRF_VERSION}" "error"
+    else
+        mkdir -pv "${FW_DOWNLOAD_DIR}"
+        for url in ${ASSETS_URLS}
+        do
+            display_alert "Download TeamGloomy firmware binary from ${url}:" "info"
+            wget -q -nc --show-progress "${url}" -O "${SDCARD}/usr/lib/teamgloomy/firmware/firmware.bin"
+        done
+    fi
+}
