@@ -171,6 +171,7 @@ display_alert "Change machine name to match hostname"
 sed -i -e "s/M550 P\"Duet 3\"/\"M550 P\"$(head -n 1 /etc/hostname)\"/g" /opt/dsf/sd/sys/config.g
 
 # Install picocom to get USB-to-serial communication with the MCU
+display_alert "USB-to-serial communication utilities"
 apt-get -y -qq install picocom
 echo "alias stmusb=\"picocom -c --imap lfcrlf /dev/ttyACM0\"" >> /etc/profile.d/00-rrf.sh
 
@@ -179,3 +180,12 @@ echo "alias stmusb=\"picocom -c --imap lfcrlf /dev/ttyACM0\"" >> /etc/profile.d/
 echo 'usermod -aG dsf $1' >> /usr/local/sbin/adduser.local
 echo 'usermod -aG tty $1' >> /usr/local/sbin/adduser.local
 chmod u+x /usr/local/sbin/adduser.local
+
+# Install DFU flash utilities
+display_alert "Install DFU flash utilities"
+apt-get -y -qq install dfu-util
+mkdir /usr/lib/teamgloomy
+mkdir /usr/lib/teamgloomy/firmware
+chmod a+w /usr/lib/teamgloomy/firmware
+cp /tmp/overlay/teamgloomy-dfu-flash /usr/lib/teamgloomy/
+echo '@reboot root /usr/lib/teamgloomy/teamgloomy-dfu-flash' > /etc/cron.d/teamgloomy

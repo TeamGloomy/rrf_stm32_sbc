@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+
+# Script to flash the MCU side of boards such as Fly-Gemini using DFU
+
+import subprocess
+import sys
+from pathlib import Path
+
+
+def check_for_firmware():
+    firmware_dirpath = '/usr/lib/teamgloomy/firmware'
+    for path in Path(firmware_dirpath).glob("firmware*.bin"):
+        if path.is_file():
+            return path
+    return None
+
+
+def flash():
+    firmware_filepath = check_for_firmware()
+    if not firmware_filepath:
+        return
+
+    cmd = f"dfu-util -d ,0483:df11 -R -a 0 -s 0x8008000:leave -D {firmware_filepath}"
+    out = subprocess.run(cmd, shell=True, capture_output=True, timeout=300)
+    print(out)
+    # TODO: Remove firmware file on success
+    return out
+
+
+if __name__ == "__main__":
+    flash()
