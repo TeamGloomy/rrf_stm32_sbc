@@ -13,10 +13,11 @@ BOOTFS_TYPE="fat"
 
 
 function pre_customize_image__download_rrf_firmware() {
-	display_alert "Download ReprapFirmware ${VENDOR} image for the board from GloomyAndy's repo" "info"
+    # VENDOR = RRF-x.x.x => set offset to 4 to remove the "RRF-" part and get only the version number
+    declare -g RRF_VERSION=${VENDOR:4}
+    declare -g RRF_MCU_TYPE="stm32f4"
 
-	declare -g RRF_VERSION=${VENDOR}
-	declare -g RRF_MCU_TYPE="stm32f4"
+	display_alert "Download ReprapFirmware ${RRF_VERSION} image for the board from GloomyAndy's repo" "info"
 	get_teamgloomy_fw
 }
 
@@ -41,7 +42,7 @@ get_teamgloomy_fw()
         for url in ${ASSETS_URLS}
         do
             display_alert "Download TeamGloomy firmware binary from ${url}:" "info"
-            wget -q -nc --show-progress "${url}" -O "${SDCARD}/usr/lib/teamgloomy/firmware/firmware.bin"
+            wget -q -nc --show-progress "${url}" -O "${FW_DOWNLOAD_DIR}/firmware.bin"
         done
     fi
 }

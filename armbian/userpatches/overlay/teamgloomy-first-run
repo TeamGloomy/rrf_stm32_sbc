@@ -1,0 +1,6 @@
+#!/bin/bash
+
+dfu-util -d ,0483:df11 -R -a 0 -s 0x8008000:leave -D /usr/lib/teamgloomy/firmware/firmware.bin
+# DSF must be up and running (and connected to a flashed board) for the socket file to exists so dsf-python can connect
+python3 /usr/lib/teamgloomy/teamgloomy-DWC_plugins_install.py
+systemctl disable teamgloomy-first-run.service

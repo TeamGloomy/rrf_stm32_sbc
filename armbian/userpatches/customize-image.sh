@@ -129,8 +129,10 @@ display_alert "Install 3rd-party plugins"
 # Install pip and python modules needed for installation scripts
 apt-get -y -qq install python3-pip
 pip3 install requests dsf-python
-# Install plugins
-python3 /tmp/overlay/plugins_install.py
+mkdir -p /usr/lib/teamgloomy/dwc-plugins/
+cp /tmp/overlay/teamgloomy-DWC_plugins_install.py /usr/lib/teamgloomy/teamgloomy-DWC_plugins_install.py
+python3 /tmp/overlay/DWC_plugins_download.py
+chown -R "dsf:dsf" /usr/lib/teamgloomy/dwc-plugins/
 
 # Install BtnCmd SBCC plugin
 display_alert "Install BtnCmd SBCC plugin"
@@ -146,7 +148,7 @@ chown "dsf:dsf" /opt/dsf/sd/sys/BtnCmdAutoRestore.json
 cp /tmp/overlay/SBCC_Default_Cmds.json /opt/dsf/sd/sys/
 chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
 
-wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCCSvs.service -O /etc/systemd/system/SBCCSvs.service
+wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCCSvs.service -O /lib/systemd/system/SBCCSvs.service
 systemctl enable SBCCSvs.service
 
 echo '{"machine":{"enabledPlugins":["BtnCmd"]}}' > /opt/dsf/sd/sys/dwc-settings.json
@@ -184,8 +186,13 @@ chmod u+x /usr/local/sbin/adduser.local
 # Install DFU flash utilities
 display_alert "Install DFU flash utilities"
 apt-get -y -qq install dfu-util
-mkdir /usr/lib/teamgloomy
 mkdir /usr/lib/teamgloomy/firmware
 chmod a+w /usr/lib/teamgloomy/firmware
 cp /tmp/overlay/teamgloomy-dfu-flash /usr/lib/teamgloomy/
-echo '@reboot root /usr/lib/teamgloomy/teamgloomy-dfu-flash' > /etc/cron.d/teamgloomy
+echo '@reboot root /usr/lib/teamgloomy/teamgloomy-dfu-flash' > /etc/cron.d/teamgloomy-dfu-flash
+
+# Enable teamgloomy-first-run service
+cp /tmp/overlay/teamgloomy-first-run /usr/lib/teamgloomy/teamgloomy-first-run
+chmod ug+x /usr/lib/teamgloomy/teamgloomy-first-run
+cp /tmp/overlay/teamgloomy-first-run.service /lib/systemd/system/teamgloomy-first-run.service
+systemctl enable teamgloomy-first-run.service

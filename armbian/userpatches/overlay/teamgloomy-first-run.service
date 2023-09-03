@@ -1,0 +1,12 @@
+[Unit]
+Description=Teamgloomy first run script
+Wants=duetcontrolserver.service
+After=duetcontrolserver.service
+
+[Service]
+ExecStart=/usr/lib/teamgloomy/teamgloomy-first-run
+TimeoutStopSec=15
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
