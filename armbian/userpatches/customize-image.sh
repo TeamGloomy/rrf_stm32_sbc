@@ -170,7 +170,7 @@ sed -i -e "s/https:\/\/configtool.reprapfirmware.org/https:\/\/teamgloomy.github
 
 # Change machine name to match hostname
 display_alert "Change machine name to match hostname"
-sed -i -e "s/M550 P\"Duet 3\"/\"M550 P\"$(head -n 1 /etc/hostname)\"/g" /opt/dsf/sd/sys/config.g
+sed -i -e "s/M550 P\"Duet 3\"/M550 P\"$(head -n 1 /etc/hostname)\"/g" /opt/dsf/sd/sys/config.g
 
 # Install picocom to get USB-to-serial communication with the MCU
 display_alert "USB-to-serial communication utilities"
