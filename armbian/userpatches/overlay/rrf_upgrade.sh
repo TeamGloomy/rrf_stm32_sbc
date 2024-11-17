@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.8"
+VERSION="0.0.9"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -238,11 +238,11 @@ get_teamgloomy_fw()
         # Get the release for a specific version
         FW_REPO="https://api.github.com/repos/gloomyandy/RepRapFirmware/releases"
         # Get data related to the last teamgloomy release for the selected Duet version
-        RELEASE_DATA=$(curl -s "${FW_REPO}" | jq '.[] | select(.tag_name? | match("v'${RRF_VERSION}'_.*"))')
+        RELEASE_DATA=$(curl -s "${FW_REPO}" | jq '.[] | select(.tag_name? | match("v'${RRF_VERSION//\~/-}'(_.*)?"))')
     fi
     # Get SBC related zip files for that release
     # NB: using jq -r to remove quotes for wget to work
-    ASSETS_URLS=$(echo -E "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*.zip")) | .browser_download_url')
+    ASSETS_URLS=$(echo -E "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*.zip"|"STM32RepRapFirmwareSBC.zip")) | .browser_download_url')
 
     if [ -z ${ASSETS_URLS} ]
     then
