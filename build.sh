@@ -6,14 +6,14 @@ if [ $# -lt 1 ]; then
 fi
 
 BOARD=$1
-RRF_VERSION="RRF-3.4.6"
+RRF_VERSION="RRF-3.5.4"
 MAINTAINER="TeamGloomy"
 MAINTAINERMAIL="teamgloomyrrf@gmail.com"
-RELEASE_NAME=jammy
+RELEASE_NAME=noble
 KERNEL_BRANCH="current"
 
 # Checkout Armbian build script
-git clone --depth 1 https://github.com/armbian/build 
+git clone --depth 1 https://github.com/armbian/build --branch=v24.11
 
 # Merge supported boards into Armbian build environment
 mkdir -p ./build/userpatches

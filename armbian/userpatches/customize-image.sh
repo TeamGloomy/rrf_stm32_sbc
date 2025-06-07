@@ -128,31 +128,7 @@ chown -R "dsf:dsf" /opt/dsf
 display_alert "Install 3rd-party plugins"
 # Install pip and python modules needed for installation scripts
 apt-get -y -qq install python3-pip
-pip3 install requests dsf-python
-mkdir -p /usr/lib/teamgloomy/dwc-plugins/
-cp /tmp/overlay/teamgloomy-DWC_plugins_install.py /usr/lib/teamgloomy/teamgloomy-DWC_plugins_install.py
-python3 /tmp/overlay/DWC_plugins_download.py
-chown -R "dsf:dsf" /usr/lib/teamgloomy/dwc-plugins/
-
-# Install BtnCmd SBCC plugin
-display_alert "Install BtnCmd SBCC plugin"
-wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCC_Main.py -O /opt/dsf/plugins/BtnCmd/dwc/SBCC_Main.py
-chown "dsf:dsf" /opt/dsf/plugins/BtnCmd/dwc/SBCC_Main.py
-
-cp /tmp/overlay/SBCC_Config.json /opt/dsf/sd/sys/
-chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Config.json
-
-cp /tmp/overlay/BtnCmdAutoRestore.json /opt/dsf/sd/sys/
-chown "dsf:dsf" /opt/dsf/sd/sys/BtnCmdAutoRestore.json
-
-cp /tmp/overlay/SBCC_Default_Cmds.json /opt/dsf/sd/sys/
-chown "dsf:dsf" /opt/dsf/sd/sys/SBCC_Default_Cmds.json
-
-wget https://raw.githubusercontent.com/MintyTrebor/BtnCmd/main/SBCC/SBCCSvs.service -O /lib/systemd/system/SBCCSvs.service
-systemctl enable SBCCSvs.service
-
-echo '{"machine":{"enabledPlugins":["BtnCmd"]}}' > /opt/dsf/sd/sys/dwc-settings.json
-chown "dsf:dsf" /opt/dsf/sd/sys/dwc-settings.json
+pip3 install --break-system-packages dsf-python
 
 # Install rrf_upgrade script
 display_alert "Install RRF upgrade script"
@@ -186,7 +162,7 @@ chmod u+x /usr/local/sbin/adduser.local
 # Install DFU flash utilities
 display_alert "Install DFU flash utilities"
 apt-get -y -qq install dfu-util
-mkdir /usr/lib/teamgloomy/firmware
+mkdir -p /usr/lib/teamgloomy/firmware
 chmod a+w /usr/lib/teamgloomy/firmware
 cp /tmp/overlay/teamgloomy-dfu-flash /usr/lib/teamgloomy/
 echo '@reboot root /usr/lib/teamgloomy/teamgloomy-dfu-flash' > /etc/cron.d/teamgloomy-dfu-flash

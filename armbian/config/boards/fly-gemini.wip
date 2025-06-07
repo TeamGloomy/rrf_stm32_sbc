@@ -2,6 +2,7 @@
 BOARD_NAME="Fly - Gemini"
 BOARDFAMILY="sun50iw2"
 BOOTCONFIG="fly_gemini_defconfig"
+BOOT_FDT_FILE="sun50i-h5-fly-gemini.dtb"
 DEFAULT_CONSOLE="both"
 MODULES="g_serial"
 #MODULES_BLACKLIST="lima"
