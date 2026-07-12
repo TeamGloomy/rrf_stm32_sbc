@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.9"
+VERSION="0.0.10"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -108,7 +108,7 @@ unhold_packages()
 
 add_duet_repo()
 {
-    if [ ${RRF_VERSION} == "latest-stable" ];
+    if [ "${RRF_VERSION}" == "latest-stable" ];
     then
         echo "-----Switching to the stable branch-----"
         wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
@@ -205,7 +205,7 @@ install_teamgloomy_fw_files()
         FILENAME=$(basename ${FILE})
         if [[ "$FILENAME" =~ firmware-.*-sbc-.*\.bin ]]
         then
-            if [ ${RRF_VERSION} == '3.4.1' ]
+            if [ "${RRF_VERSION}" == "3.4.1" ]
             then
                 # Rename firmware-mcutype-sbc-version.bin files into firmware-mcutype.bin (Specific to 3.4.1)
                 echo "Move ${FW_DOWNLOAD_TEMP_DIR}"/"${FILENAME} to /opt/dsf/sd/firmware/"${FILENAME%-*}.bin""
@@ -217,7 +217,7 @@ install_teamgloomy_fw_files()
             fi
         else
             echo "Move ${FILE} to /opt/dsf/sd/firmware/"${FILENAME}""
-            mv ${FILE} /opt/dsf/sd/firmware/
+            mv "${FILE}" /opt/dsf/sd/firmware/
         fi
     done
 }
@@ -240,11 +240,17 @@ get_teamgloomy_fw()
         # Get data related to the last teamgloomy release for the selected Duet version
         RELEASE_DATA=$(curl -s "${FW_REPO}" | jq '.[] | select(.tag_name? | match("v'${RRF_VERSION//\~/-}'(_.*)?"))')
     fi
+    if [ -z "${RELEASE_DATA}" ] || ! echo -E "${RELEASE_DATA}" | jq -e . > /dev/null 2>&1
+    then
+        echo -e "\033[0;31mWarning: Unable to retrieve release data from GitHub for ${RRF_VERSION}, skipping firmware download\033[0m"
+        return
+    fi
+
     # Get SBC related zip files for that release
     # NB: using jq -r to remove quotes for wget to work
-    ASSETS_URLS=$(echo -E "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*.zip"|"STM32RepRapFirmwareSBC.zip")) | .browser_download_url')
+    ASSETS_URLS=$(echo -E "${RELEASE_DATA}" | jq -r '.assets[] | select(.name? | match("firmware-.*-sbc-.*\\.zip"|"STM32RepRapFirmwareSBC\\.zip")) | .browser_download_url')
 
-    if [ -z ${ASSETS_URLS} ]
+    if [ -z "${ASSETS_URLS}" ]
     then
         echo -e "\033[0;31mWarning: No teamgloomy firmware found for ${RRF_VERSION}\033[0m"
     else
@@ -252,7 +258,7 @@ get_teamgloomy_fw()
         for url in ${ASSETS_URLS}
         do
             echo "Download TeamGloomy firmware archive from ${url}:"
-            wget -q -nc --show-progress "${url}" -O teamgloomy_fw.zip
+            wget -q --show-progress "${url}" -O teamgloomy_fw.zip
             unzip -o -d "${FW_DOWNLOAD_TEMP_DIR}" teamgloomy_fw.zip
             rm teamgloomy_fw.zip
 
@@ -269,10 +275,16 @@ self-update()
     rm -f "$SELF_UPDATER_SCRIPT"
 
     TMP_FILE=$(mktemp -p "" "XXXXX.sh")
-    curl -s -L "$SCRIPT_URL" > "$TMP_FILE"
+    if ! curl -s -f -L "$SCRIPT_URL" -o "$TMP_FILE" || [ ! -s "$TMP_FILE" ]
+    then
+        echo -e "\033[0;31mWarning: Unable to download the latest rrf_upgrade script, skipping self-update\033[0m"
+        rm -f "$TMP_FILE"
+        return
+    fi
+
     NEW_VER=$(grep "^VERSION" "$TMP_FILE" | awk -F'[="]' '{print $3}')
     ABS_SCRIPT_PATH=$(readlink -f "$SCRIPT_LOCATION")
-    if [ "$VERSION" \< "$NEW_VER" ]
+    if [ -n "$NEW_VER" ] && [ "$VERSION" != "$NEW_VER" ] && [ "$(printf '%s\n%s\n' "$VERSION" "$NEW_VER" | sort -V | tail -n1)" == "$NEW_VER" ]
     then
         printf "Updating script \e[31;1m%s\e[0m -> \e[32;1m%s\e[0m\n" "$VERSION" "$NEW_VER"
 
