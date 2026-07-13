@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.10"
+VERSION="0.0.11"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -10,8 +10,14 @@ DSF_CONF=/opt/dsf/conf/config.json
 
 FW_DOWNLOAD_TEMP_DIR="/tmp/teamgloomy_fw_temp"
 
+usage()
+{
+    echo "Usage: rrf_upgrade <RRF_version> [--comms spi|usb]. Example: rrf_upgrade 3.4-b7 or rrf_upgrade latest-stable or rrf_upgrade latest-unstable"
+    echo "       rrf_upgrade set-comms spi|usb    Switch the SPI/USB communication method without touching installed packages"
+}
+
 if [ $# -lt 1 ]; then
-    echo "Usage: rrf_upgrade <RRF_version>. Example: rrf_upgrade 3.4-b7 or rrf_upgrade latest-stable or rrf_upgrade latest-unstable"
+    usage
     exit 1
 fi
 
@@ -21,7 +27,36 @@ if [ "${EUID}" -ne "0" ]; then
     exit $?
 fi
 
-RRF_VERSION="$1"
+ALL_ARGS=("$@")
+ACTION="$1"
+COMMS_METHOD=""
+
+if [ "${ACTION}" == "set-comms" ]; then
+    COMMS_METHOD="$2"
+    if [ "${COMMS_METHOD}" != "spi" ] && [ "${COMMS_METHOD}" != "usb" ]; then
+        usage
+        exit 1
+    fi
+else
+    RRF_VERSION="$1"
+    shift
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --comms)
+                COMMS_METHOD="$2"
+                if [ "${COMMS_METHOD}" != "spi" ] && [ "${COMMS_METHOD}" != "usb" ]; then
+                    usage
+                    exit 1
+                fi
+                shift 2
+                ;;
+            *)
+                usage
+                exit 1
+                ;;
+        esac
+    done
+fi
 
 main()
 {
@@ -61,6 +96,12 @@ backup_board_conf()
     SPI_DEVICE="$(grep "^\s\+\"SpiDevice" $DSF_CONF | awk -F': "' '{print $2}')"
     GPIO_CHIP_DEVICE="$(grep "^\s\+\"GpioChipDevice" $DSF_CONF | awk -F': "' '{print $2}')"
     TRANSFER_READY_PIN="$(grep "^\s\+\"TransferReadyPin" $DSF_CONF | awk -F': ' '{print $2}')"
+    # Preserve the current CommunicationMethod, unless the user explicitly requested a different one via --comms
+    if [ -n "${COMMS_METHOD}" ]; then
+        COMMS_METHOD_CONF="${COMMS_METHOD}\","
+    else
+        COMMS_METHOD_CONF="$(grep "^\s\+\"CommunicationMethod" $DSF_CONF | awk -F': "' '{print $2}')"
+    fi
     echo "-----Backup board configuration finished-----"
 }
 
@@ -70,6 +111,7 @@ restore_board_conf()
     sed -i -e 's|"SpiDevice": .*,|"SpiDevice": "'"${SPI_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"GpioChipDevice": .*,|"GpioChipDevice": "'"${GPIO_CHIP_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"TransferReadyPin": .*,|"TransferReadyPin": '"${TRANSFER_READY_PIN}"'|g' "$DSF_CONF"
+    sed -i -e 's|"CommunicationMethod": .*,|"CommunicationMethod": "'"${COMMS_METHOD_CONF}"'|g' "$DSF_CONF"
 
     # Update the package checksum as we could check if the configuration file was modified by the user on the next upgrade
     sed -i -e "s%.*opt/dsf/conf/config.json%$(md5sum /opt/dsf/conf/config.json | awk 'NR==1{print $1}')  opt/dsf/conf/config.json%g" /var/lib/dpkg/info/duetcontrolserver.md5sums
@@ -198,6 +240,16 @@ restart_rrf_services()
     echo "-----Starting Duet services finished-----"
 }
 
+set_comms_method()
+{
+    echo "-----Setting communication method to ${COMMS_METHOD}-----"
+    stop_rrf_services
+    cp "$DSF_CONF" "$DSF_CONF.bak"
+    sed -i -e 's|"CommunicationMethod": .*,|"CommunicationMethod": "'"${COMMS_METHOD}"'",|g' "$DSF_CONF"
+    restart_rrf_services
+    echo "-----Communication method set to ${COMMS_METHOD}-----"
+}
+
 install_teamgloomy_fw_files()
 {
     for FILE in `find "${FW_DOWNLOAD_TEMP_DIR}" -maxdepth 1 -type f`
@@ -302,5 +354,10 @@ self-update()
     fi
 }
 
-self-update "$@"
-main
+self-update "${ALL_ARGS[@]}"
+
+if [ "${ACTION}" == "set-comms" ]; then
+    set_comms_method
+else
+    main
+fi
