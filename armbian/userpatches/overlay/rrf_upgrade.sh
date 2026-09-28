@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.1.1"
+VERSION="0.2.0"
 
 # Scripts up to 0.0.11 re-exec themselves after a self-update with all arguments merged into one
 # (e.g. "set-comms usb"), so split a single argument containing whitespace back into words
@@ -17,12 +17,21 @@ DSF_CONF=/opt/dsf/conf/config.json
 
 FW_DOWNLOAD_TEMP_DIR="/tmp/teamgloomy_fw_temp"
 
+# --- COLORS & STYLING ---
 if [ -t 1 ]; then
-    C_RED=$'\033[0;31m'; C_GREEN=$'\033[0;32m'; C_YELLOW=$'\033[0;33m'
+    C_RED=$'\033[0;31m'; C_GREEN=$'\033[0;32m'; C_YELLOW=$'\033[1;33m'
     C_BLUE=$'\033[0;34m'; C_CYAN=$'\033[0;36m'; C_BOLD=$'\033[1m'; C_RESET=$'\033[0m'
 else
     C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""; C_CYAN=""; C_BOLD=""; C_RESET=""
 fi
+
+# --- LOGGING HELPERS ---
+header()  { echo -e "\n${C_BOLD}${C_CYAN}=== $* ===${C_RESET}"; }
+info()    { echo -e "${C_BLUE}[INFO]${C_RESET} $*"; }
+success() { echo -e "${C_GREEN}[OK]${C_RESET} $*"; }
+warn()    { echo -e "${C_YELLOW}[WARN]${C_RESET} $*"; }
+error()   { echo -e "${C_RED}[ERROR]${C_RESET} $*"; }
+die()     { error "$*"; exit 1; }
 
 usage()
 {
@@ -75,35 +84,35 @@ fi
 
 main()
 {
-    echo "-----This will install the Duet packages for ${RRF_VERSION} -----"
-#    echo "-----Update and upgrade the SBC system-----"
+    header "Installing Duet packages for ${RRF_VERSION}"
+#    header "Update and upgrade the SBC system"
     hold_packages
 #    apt-get -q update && apt-get -y upgrade
-#    echo "-----Upgrade and Update finished-----"
+#    success "Upgrade and Update finished"
     if [ "${REPO_PREPARED}" -ne 1 ]; then
         add_duet_repo
-        echo "-----Updating packages list-----"
+        header "Updating packages list"
         apt-get -q update
-        echo "-----Updating packages finished-----"
+        success "Updating packages finished"
     fi
-    echo "-----Downloading TeamGloomy firmware-----"
+    header "Downloading TeamGloomy firmware"
     get_teamgloomy_fw
-    echo "-----Downloading TeamGloomy firmware finished-----"
+    success "Downloading TeamGloomy firmware finished"
     # Backup the config file prior to mess with
     backup_board_conf
     stop_rrf_services
-    echo "-----Installing packages-----"
+    header "Installing packages"
     unhold_packages
     install_packages
     hold_packages
-    echo "-----Installing packages finished-----"
+    success "Installing packages finished"
     restore_board_conf
     restart_rrf_services
 }
 
 backup_board_conf()
 {
-    echo "-----Backup board configuration-----"
+    header "Backup board configuration"
     # Check if configuration has been changed since installation
     INSTALLED_CONF_CHECKSUM=$(cat /var/lib/dpkg/info/duetcontrolserver.md5sums | grep opt/dsf/conf/config.json | awk 'NR==1{print $1}')
     CUR_CONF_CHECKSUM=$(md5sum /opt/dsf/conf/config.json | awk 'NR==1{print $1}')
@@ -119,12 +128,12 @@ backup_board_conf()
     else
         COMMS_METHOD_CONF="$(grep "^\s\+\"CommunicationMethod" $DSF_CONF | awk -F': "' '{print $2}')"
     fi
-    echo "-----Backup board configuration finished-----"
+    success "Backup board configuration finished"
 }
 
 restore_board_conf()
 {
-    echo "-----Restore board configuration-----"
+    header "Restore board configuration"
     sed -i -e 's|"SpiDevice": .*,|"SpiDevice": "'"${SPI_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"GpioChipDevice": .*,|"GpioChipDevice": "'"${GPIO_CHIP_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"TransferReadyPin": .*,|"TransferReadyPin": '"${TRANSFER_READY_PIN}"'|g' "$DSF_CONF"
@@ -132,7 +141,7 @@ restore_board_conf()
 
     # Update the package checksum as we could check if the configuration file was modified by the user on the next upgrade
     sed -i -e "s%.*opt/dsf/conf/config.json%$(md5sum /opt/dsf/conf/config.json | awk 'NR==1{print $1}')  opt/dsf/conf/config.json%g" /var/lib/dpkg/info/duetcontrolserver.md5sums
-    echo "-----Restore board configuration finished-----"
+    success "Restore board configuration finished"
 }
 
 hold_packages()
@@ -172,19 +181,19 @@ add_duet_repo()
     fi
     if [ "${CHANNEL}" == "stable" ];
     then
-        echo "-----Switching to the stable branch-----"
+        header "Switching to the stable branch"
         wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
         wget -q https://pkg.duet3d.com/duet3d.list -O /etc/apt/sources.list.d/duet3d.list
         rm -f /etc/apt/sources.list.d/duet3d-unstable.list
         add_preference_file
-        echo "-----Switching to the stable branch finished-----"
+        success "Switching to the stable branch finished"
     else
-        echo "-----Switching to the unstable branch-----"
+        header "Switching to the unstable branch"
         wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
         wget -q https://pkg.duet3d.com/duet3d-unstable.list -O /etc/apt/sources.list.d/duet3d-unstable.list
         rm -f /etc/apt/sources.list.d/duet3d.list
         add_preference_file
-        echo "-----Switching to the unstable branch finished-----"
+        success "Switching to the unstable branch finished"
     fi
 }
 
@@ -234,18 +243,18 @@ install_packages()
 
 stop_rrf_services()
 {
-    echo "-----Stopping Duet services-----"
+    header "Stopping Duet services"
     # Disable DCS to prevent automatic restart once installed and prior to restore board configuration
     # this way no error will be displayed because of wrong board SPI configuration
     # Check is done in /var/lib/dpkg/info/duetcontrolserver.postinst
     systemctl stop duetcontrolserver
     systemctl disable duetcontrolserver
-    echo "-----Stopping Duet services finished-----"
+    success "Stopping Duet services finished"
 }
 
 restart_rrf_services()
 {
-    echo "-----Starting Duet services-----"
+    header "Starting Duet services"
     systemctl enable duetcontrolserver
     systemctl start duetcontrolserver
 
@@ -257,17 +266,17 @@ restart_rrf_services()
 
     /opt/dsf/bin/PluginManager -q reload DuetPiManagementPlugin
     /opt/dsf/bin/PluginManager -q start DuetPiManagementPlugin
-    echo "-----Starting Duet services finished-----"
+    success "Starting Duet services finished"
 }
 
 set_comms_method()
 {
-    echo "-----Setting communication method to ${COMMS_METHOD}-----"
+    header "Setting communication method to ${COMMS_METHOD}"
     stop_rrf_services
     cp "$DSF_CONF" "$DSF_CONF.bak"
     sed -i -e 's|"CommunicationMethod": .*,|"CommunicationMethod": "'"${COMMS_METHOD}"'",|g' "$DSF_CONF"
     restart_rrf_services
-    echo "-----Communication method set to ${COMMS_METHOD}-----"
+    success "Communication method set to ${COMMS_METHOD}"
 }
 
 install_teamgloomy_fw_files()
@@ -314,7 +323,7 @@ get_teamgloomy_fw()
     fi
     if [ -z "${RELEASE_DATA}" ] || ! echo -E "${RELEASE_DATA}" | jq -e . > /dev/null 2>&1
     then
-        echo -e "\033[0;31mWarning: Unable to retrieve release data from GitHub for ${RRF_VERSION}, skipping firmware download\033[0m"
+        warn "Unable to retrieve release data from GitHub for ${RRF_VERSION}, skipping firmware download"
         return
     fi
 
@@ -324,7 +333,7 @@ get_teamgloomy_fw()
 
     if [ -z "${ASSETS_URLS}" ]
     then
-        echo -e "\033[0;31mWarning: No teamgloomy firmware found for ${RRF_VERSION}\033[0m"
+        warn "No teamgloomy firmware found for ${RRF_VERSION}"
     else
         mkdir -p "${FW_DOWNLOAD_TEMP_DIR}"
         for url in ${ASSETS_URLS}
@@ -349,7 +358,7 @@ self-update()
     TMP_FILE=$(mktemp -p "" "XXXXX.sh")
     if ! curl -s -f -L "$SCRIPT_URL" -o "$TMP_FILE" || [ ! -s "$TMP_FILE" ]
     then
-        echo -e "\033[0;31mWarning: Unable to download the latest rrf_upgrade script, skipping self-update\033[0m"
+        warn "Unable to download the latest rrf_upgrade script, skipping self-update"
         rm -f "$TMP_FILE"
         return
     fi
@@ -358,7 +367,8 @@ self-update()
     ABS_SCRIPT_PATH=$(readlink -f "$SCRIPT_LOCATION")
     if [ -n "$NEW_VER" ] && [ "$VERSION" != "$NEW_VER" ] && [ "$(printf '%s\n%s\n' "$VERSION" "$NEW_VER" | sort -V | tail -n1)" == "$NEW_VER" ]
     then
-        printf "Updating script \e[31;1m%s\e[0m -> \e[32;1m%s\e[0m\n" "$VERSION" "$NEW_VER"
+        echo -e "${C_BOLD}${C_YELLOW}Update Available:${C_RESET} ${C_RED}${VERSION}${C_RESET} -> ${C_GREEN}${NEW_VER}${C_RESET}"
+        info "Updating script..."
 
         echo "cp \"$TMP_FILE\" \"$ABS_SCRIPT_PATH\"" > "$SELF_UPDATER_SCRIPT"
         echo "rm -f \"$TMP_FILE\"" >> "$SELF_UPDATER_SCRIPT"
@@ -373,7 +383,6 @@ self-update()
         chmod +x "$TMP_FILE"
         exec "$SELF_UPDATER_SCRIPT"
     else
-        echo "The script is up-to-date. Continue..."
         rm -f "$TMP_FILE"
     fi
 }
@@ -382,11 +391,41 @@ self-update()
 # Interactive UI (used when the script is run without arguments)
 # ---------------------------------------------------------------------------
 
-header()  { echo -e "\n${C_CYAN}${C_BOLD}=== $* ===${C_RESET}"; }
-info()    { echo -e "${C_BLUE}$*${C_RESET}"; }
-success() { echo -e "${C_GREEN}$*${C_RESET}"; }
-warn()    { echo -e "${C_YELLOW}$*${C_RESET}"; }
-error()   { echo -e "${C_RED}$*${C_RESET}"; }
+show_banner()
+{
+    [ -t 1 ] && clear
+    echo -e "${C_CYAN}"
+    cat << 'END'
+  ____   ____   _____
+ |  _ \ |  _ \ |  ___|
+ | |_) || |_) || |_
+ |  _ < |  _ < |  _|
+ |_| \_\|_| \_\|_|
+
+END
+    echo "  TeamGloomy RRF Upgrade Utility v${VERSION}"
+    echo -e "  Installed DSF: ${C_GREEN}$(get_installed_dsf_version || echo "Not Installed")${C_CYAN}"
+    echo -e "  Channel: ${C_GREEN}$(get_current_channel)${C_CYAN}   Comms: ${C_GREEN}$(get_current_comms)${C_CYAN}"
+    echo -e "${C_RESET}"
+}
+
+check_health()
+{
+    header "Service Health Check"
+    info "Waiting for services to settle..."
+    sleep 3
+    if systemctl is-active --quiet duetcontrolserver; then
+        success "DuetControlServer is running."
+    else
+        echo -e "${C_RED}${C_BOLD}!!! DuetControlServer failed to start !!!${C_RESET}"
+        echo -e "${C_YELLOW}Last 20 lines of service log:${C_RESET}"
+        echo "---------------------------------------------------"
+        systemctl status duetcontrolserver -n 20 --no-pager
+        echo "---------------------------------------------------"
+        error "Update completed but the service failed to start."
+        return 1
+    fi
+}
 
 get_installed_dsf_version()
 {
@@ -430,6 +469,7 @@ describe_dsf_version()
 select_version()
 {
     local channel="$1" limit=15 versions=() i choice
+    header "Fetching Packages"
     info "Refreshing the ${channel} package list..."
     add_duet_repo > /dev/null
     apt-get -q update > /dev/null 2>&1
@@ -440,81 +480,117 @@ select_version()
         error "No duetsoftwareframework versions found in the ${channel} repository"
         return 1
     fi
+    success "Found ${#versions[@]} versions in the ${channel} repository."
+
+    header "Select Version"
+    echo -e "  0) ${C_GREEN}Latest ${channel}${C_RESET} (Recommended)"
+    local shown=0
+    while [ "${shown}" -lt "${#versions[@]}" ] && [ "${shown}" -lt "${limit}" ]; do
+        printf " %2d) %-14s ${C_CYAN}%s${C_RESET}\n" "$((shown + 1))" "${versions[$shown]}" "$(describe_dsf_version "${versions[$shown]}")"
+        ((shown++))
+    done
+    [ "${#versions[@]}" -gt "${shown}" ] && echo "  a) Show all ${#versions[@]} versions"
+    echo "  b) Back"
+    echo "  x) Exit"
+    echo ""
 
     while true; do
-        header "Select version (${channel})"
-        echo "  0) Latest ${channel} (recommended)"
-        for ((i = 0; i < ${#versions[@]} && i < limit; i++)); do
-            printf "  %d) DSF %-14s %s\n" "$((i + 1))" "${versions[$i]}" "$(describe_dsf_version "${versions[$i]}")"
-        done
-        [ "${#versions[@]}" -gt "${limit}" ] && echo "  a) Show all ${#versions[@]} versions"
-        echo "  b) Back"
-        read -r -p "Choose a version: " choice
+        read -r -p "Select version to install [0-${shown}, a, b or x]: " choice || exit 1
         case "${choice}" in
-            0) RRF_VERSION="latest-${channel}"; return 0 ;;
-            a|A) limit=${#versions[@]} ;;
-            b|B|q|Q) return 1 ;;
+            0) RRF_VERSION="latest-${channel}"; break ;;
+            a|A)
+                limit=${#versions[@]}
+                while [ "${shown}" -lt "${limit}" ]; do
+                    printf " %2d) %-14s ${C_CYAN}%s${C_RESET}\n" "$((shown + 1))" "${versions[$shown]}" "$(describe_dsf_version "${versions[$shown]}")"
+                    ((shown++))
+                done
+                ;;
+            b|B) return 1 ;;
+            x|X) info "Exiting..."; exit 0 ;;
             *)
-                if [[ "${choice}" =~ ^[0-9]+$ ]] && [ "${choice}" -ge 1 ] && [ "${choice}" -le "${#versions[@]}" ] && [ "${choice}" -le "${limit}" ]; then
+                if [[ "${choice}" =~ ^[0-9]+$ ]] && [ "${choice}" -ge 1 ] && [ "${choice}" -le "${shown}" ]; then
                     RRF_VERSION="${versions[$((choice - 1))]}"
-                    return 0
+                    break
                 fi
-                warn "Invalid selection"
+                echo -e "${C_RED}Invalid selection.${C_RESET}"
                 ;;
         esac
     done
+    info "Selected Version: ${C_BOLD}${RRF_VERSION}${C_RESET}"
 }
 
 select_comms()
 {
     local choice
-    header "Communication method"
+    header "Communication Method"
     echo "  1) Keep current ($(get_current_comms))"
     echo "  2) SPI"
     echo "  3) USB"
-    read -r -p "Choose [1]: " choice
-    case "${choice:-1}" in
-        2) COMMS_METHOD="spi" ;;
-        3) COMMS_METHOD="usb" ;;
-        *) COMMS_METHOD="" ;;
-    esac
+    echo ""
+    while true; do
+        read -r -p "Enter choice [1-3, default 1]: " choice || exit 1
+        case "${choice:-1}" in
+            1) COMMS_METHOD=""; break ;;
+            2) COMMS_METHOD="spi"; break ;;
+            3) COMMS_METHOD="usb"; break ;;
+            *) echo -e "${C_RED}Invalid selection.${C_RESET}" ;;
+        esac
+    done
 }
 
 interactive_install()
 {
-    local answer
     CHANNEL="$1"
     select_version "${CHANNEL}" || return
     select_comms
 
     header "Summary"
-    echo "  Channel : ${CHANNEL}"
-    echo "  Version : ${RRF_VERSION}"
-    echo "  Comms   : ${COMMS_METHOD:-keep current}"
-    warn "Duet services will be stopped during the upgrade and the board configuration restored afterwards."
-    read -r -p "Proceed with installation? [y/N] " answer
-    if [[ "${answer}" =~ ^[Yy]$ ]]; then
-        main
-        success "Done."
+    info "Channel: ${C_BOLD}${CHANNEL}${C_RESET}"
+    info "Version: ${C_BOLD}${RRF_VERSION}${C_RESET}"
+    info "Comms:   ${C_BOLD}${COMMS_METHOD:-keep current}${C_RESET}"
+    warn "Duet services will be stopped during the upgrade."
+    read -p "Proceed with installation? [y/N to Exit] " -n 1 -r || exit 1
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        info "Update cancelled by user."
         exit 0
     fi
-    info "Cancelled."
+    main
+    check_health
+    header "Complete"
+    exit 0
 }
 
 interactive_set_comms()
 {
-    local answer
     select_comms
     if [ -z "${COMMS_METHOD}" ]; then
         info "Communication method unchanged."
         return
     fi
-    read -r -p "Switch communication method to ${COMMS_METHOD}? [y/N] " answer
-    if [[ "${answer}" =~ ^[Yy]$ ]]; then
-        set_comms_method
+    read -p "Switch communication method to ${COMMS_METHOD}? [y/N to Exit] " -n 1 -r || exit 1
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        info "Cancelled by user."
         exit 0
     fi
-    COMMS_METHOD=""
+    set_comms_method
+    check_health
+    header "Complete"
+    exit 0
+}
+
+show_menu()
+{
+    show_banner
+    header "Configuration"
+    echo "Select Release Channel:"
+    echo -e "  1) ${C_GREEN}Stable${C_RESET}   (Recommended)"
+    echo -e "  2) ${C_YELLOW}Unstable${C_RESET} (Bleeding Edge)"
+    echo "  3) Switch SPI/USB Communication"
+    echo "  4) Restart Services"
+    echo "  5) Exit"
+    echo ""
 }
 
 interactive_menu()
@@ -524,26 +600,21 @@ interactive_menu()
         usage
         exit 1
     fi
+    show_menu
     while true; do
-        header "TeamGloomy RRF upgrade v${VERSION}"
-        echo "  Installed DSF : $(get_installed_dsf_version)"
-        echo "  Channel       : $(get_current_channel)"
-        echo "  Comms         : $(get_current_comms)"
-        echo
-        echo "Select release channel:"
-        echo "  1) Stable (recommended)"
-        echo "  2) Unstable (bleeding edge)"
-        echo "  3) Switch SPI/USB communication"
-        echo "  4) Restart Duet services"
-        echo "  5) Exit"
-        read -r -p "Choose an option: " choice
+        read -r -p "Enter choice [1-5]: " choice || exit 1
         case "${choice}" in
-            1) interactive_install stable ;;
-            2) interactive_install unstable ;;
-            3) interactive_set_comms ;;
-            4) restart_rrf_services ;;
-            5|q|Q) exit 0 ;;
-            *) warn "Invalid selection" ;;
+            1) interactive_install stable; show_menu ;;
+            2) interactive_install unstable; show_menu ;;
+            3) interactive_set_comms; show_menu ;;
+            4)
+                header "Restarting Services"
+                restart_rrf_services
+                check_health
+                exit $?
+                ;;
+            5|x|X|q|Q) info "Exiting..."; exit 0 ;;
+            *) echo -e "${C_RED}Invalid selection.${C_RESET}" ;;
         esac
     done
 }
@@ -554,6 +625,8 @@ if [ "${ACTION}" == "interactive" ]; then
     interactive_menu
 elif [ "${ACTION}" == "set-comms" ]; then
     set_comms_method
+    check_health
 else
     main
+    check_health
 fi
