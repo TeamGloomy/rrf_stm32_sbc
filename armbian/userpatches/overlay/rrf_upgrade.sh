@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.0.11"
+VERSION="0.1.0"
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
@@ -10,16 +10,19 @@ DSF_CONF=/opt/dsf/conf/config.json
 
 FW_DOWNLOAD_TEMP_DIR="/tmp/teamgloomy_fw_temp"
 
+if [ -t 1 ]; then
+    C_RED=$'\033[0;31m'; C_GREEN=$'\033[0;32m'; C_YELLOW=$'\033[0;33m'
+    C_BLUE=$'\033[0;34m'; C_CYAN=$'\033[0;36m'; C_BOLD=$'\033[1m'; C_RESET=$'\033[0m'
+else
+    C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""; C_CYAN=""; C_BOLD=""; C_RESET=""
+fi
+
 usage()
 {
-    echo "Usage: rrf_upgrade <RRF_version> [--comms spi|usb]. Example: rrf_upgrade 3.4-b7 or rrf_upgrade latest-stable or rrf_upgrade latest-unstable"
+    echo "Usage: rrf_upgrade                     Interactive menu (choose channel and version)"
+    echo "       rrf_upgrade <RRF_version> [--comms spi|usb]. Example: rrf_upgrade 3.4-b7 or rrf_upgrade latest-stable or rrf_upgrade latest-unstable"
     echo "       rrf_upgrade set-comms spi|usb    Switch the SPI/USB communication method without touching installed packages"
 }
-
-if [ $# -lt 1 ]; then
-    usage
-    exit 1
-fi
 
 if [ "${EUID}" -ne "0" ]; then
     echo "This script requires root privileges, trying to use sudo"
@@ -28,10 +31,15 @@ if [ "${EUID}" -ne "0" ]; then
 fi
 
 ALL_ARGS=("$@")
-ACTION="$1"
+ACTION="${1:-}"
 COMMS_METHOD=""
+RRF_VERSION=""
+CHANNEL=""
+REPO_PREPARED=0
 
-if [ "${ACTION}" == "set-comms" ]; then
+if [ $# -eq 0 ]; then
+    ACTION="interactive"
+elif [ "${ACTION}" == "set-comms" ]; then
     COMMS_METHOD="$2"
     if [ "${COMMS_METHOD}" != "spi" ] && [ "${COMMS_METHOD}" != "usb" ]; then
         usage
@@ -65,10 +73,12 @@ main()
     hold_packages
 #    apt-get -q update && apt-get -y upgrade
 #    echo "-----Upgrade and Update finished-----"
-    add_duet_repo
-    echo "-----Updating packages list-----"
-    apt-get -q update
-    echo "-----Updating packages finished-----"
+    if [ "${REPO_PREPARED}" -ne 1 ]; then
+        add_duet_repo
+        echo "-----Updating packages list-----"
+        apt-get -q update
+        echo "-----Updating packages finished-----"
+    fi
     echo "-----Downloading TeamGloomy firmware-----"
     get_teamgloomy_fw
     echo "-----Downloading TeamGloomy firmware finished-----"
@@ -150,7 +160,10 @@ unhold_packages()
 
 add_duet_repo()
 {
-    if [ "${RRF_VERSION}" == "latest-stable" ];
+    if [ -z "${CHANNEL}" ]; then
+        if [ "${RRF_VERSION}" == "latest-stable" ]; then CHANNEL="stable"; else CHANNEL="unstable"; fi
+    fi
+    if [ "${CHANNEL}" == "stable" ];
     then
         echo "-----Switching to the stable branch-----"
         wget -q https://pkg.duet3d.com/duet3d.gpg -O /etc/apt/trusted.gpg.d/duet3d.gpg
@@ -343,7 +356,11 @@ self-update()
         echo "cp \"$TMP_FILE\" \"$ABS_SCRIPT_PATH\"" > "$SELF_UPDATER_SCRIPT"
         echo "rm -f \"$TMP_FILE\"" >> "$SELF_UPDATER_SCRIPT"
         echo "echo Running script again: `basename ${BASH_SOURCE[@]}` $@" >> "$SELF_UPDATER_SCRIPT"
-        echo "exec \"$ABS_SCRIPT_PATH\" \"$@\"" >> "$SELF_UPDATER_SCRIPT"
+        {
+            printf 'exec %q' "$ABS_SCRIPT_PATH"
+            [ $# -gt 0 ] && printf ' %q' "$@"
+            printf '\n'
+        } >> "$SELF_UPDATER_SCRIPT"
 
         chmod +x "$SELF_UPDATER_SCRIPT"
         chmod +x "$TMP_FILE"
@@ -354,9 +371,181 @@ self-update()
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Interactive UI (used when the script is run without arguments)
+# ---------------------------------------------------------------------------
+
+header()  { echo -e "\n${C_CYAN}${C_BOLD}=== $* ===${C_RESET}"; }
+info()    { echo -e "${C_BLUE}$*${C_RESET}"; }
+success() { echo -e "${C_GREEN}$*${C_RESET}"; }
+warn()    { echo -e "${C_YELLOW}$*${C_RESET}"; }
+error()   { echo -e "${C_RED}$*${C_RESET}"; }
+
+get_installed_dsf_version()
+{
+    dpkg-query -W -f='${Version}' duetsoftwareframework 2>/dev/null
+}
+
+get_current_channel()
+{
+    if [ -f /etc/apt/sources.list.d/duet3d-unstable.list ]; then
+        echo "unstable"
+    elif [ -f /etc/apt/sources.list.d/duet3d.list ]; then
+        echo "stable"
+    else
+        echo "unknown"
+    fi
+}
+
+get_current_comms()
+{
+    grep "^\s\+\"CommunicationMethod" "$DSF_CONF" 2>/dev/null | awk -F': "' '{print $2}' | tr -d '",'
+}
+
+# List the duetsoftwareframework versions available in the configured repositories, newest first
+# (same source of truth as https://github.com/DanalEstes/DuetVersions)
+list_dsf_versions()
+{
+    apt-cache madison duetsoftwareframework 2>/dev/null | awk '{print $3}' | sort -uV -r
+}
+
+# Print the reprapfirmware and duetwebcontrol versions a given duetsoftwareframework version depends on
+describe_dsf_version()
+{
+    local depends rrf dwc
+    depends=$(apt-cache show "duetsoftwareframework=$1" 2>/dev/null | awk -F': ' '/^Depends:/{print $2; exit}')
+    rrf=$(echo "${depends}" | grep -o 'reprapfirmware (= [^)]*)' | sed 's/.*= //;s/)//')
+    dwc=$(echo "${depends}" | grep -o 'duetwebcontrol (= [^)]*)' | sed 's/.*= //;s/)//')
+    printf "RRF %-12s DWC %s" "${rrf:-?}" "${dwc:-?}"
+}
+
+# Sets RRF_VERSION, returns 1 if the user went back or nothing is available
+select_version()
+{
+    local channel="$1" limit=15 versions=() i choice
+    info "Refreshing the ${channel} package list..."
+    add_duet_repo > /dev/null
+    apt-get -q update > /dev/null 2>&1
+    REPO_PREPARED=1
+
+    mapfile -t versions < <(list_dsf_versions)
+    if [ "${#versions[@]}" -eq 0 ]; then
+        error "No duetsoftwareframework versions found in the ${channel} repository"
+        return 1
+    fi
+
+    while true; do
+        header "Select version (${channel})"
+        echo "  0) Latest ${channel} (recommended)"
+        for ((i = 0; i < ${#versions[@]} && i < limit; i++)); do
+            printf "  %d) DSF %-14s %s\n" "$((i + 1))" "${versions[$i]}" "$(describe_dsf_version "${versions[$i]}")"
+        done
+        [ "${#versions[@]}" -gt "${limit}" ] && echo "  a) Show all ${#versions[@]} versions"
+        echo "  b) Back"
+        read -r -p "Choose a version: " choice
+        case "${choice}" in
+            0) RRF_VERSION="latest-${channel}"; return 0 ;;
+            a|A) limit=${#versions[@]} ;;
+            b|B|q|Q) return 1 ;;
+            *)
+                if [[ "${choice}" =~ ^[0-9]+$ ]] && [ "${choice}" -ge 1 ] && [ "${choice}" -le "${#versions[@]}" ] && [ "${choice}" -le "${limit}" ]; then
+                    RRF_VERSION="${versions[$((choice - 1))]}"
+                    return 0
+                fi
+                warn "Invalid selection"
+                ;;
+        esac
+    done
+}
+
+select_comms()
+{
+    local choice
+    header "Communication method"
+    echo "  1) Keep current ($(get_current_comms))"
+    echo "  2) SPI"
+    echo "  3) USB"
+    read -r -p "Choose [1]: " choice
+    case "${choice:-1}" in
+        2) COMMS_METHOD="spi" ;;
+        3) COMMS_METHOD="usb" ;;
+        *) COMMS_METHOD="" ;;
+    esac
+}
+
+interactive_install()
+{
+    local answer
+    CHANNEL="$1"
+    select_version "${CHANNEL}" || return
+    select_comms
+
+    header "Summary"
+    echo "  Channel : ${CHANNEL}"
+    echo "  Version : ${RRF_VERSION}"
+    echo "  Comms   : ${COMMS_METHOD:-keep current}"
+    warn "Duet services will be stopped during the upgrade and the board configuration restored afterwards."
+    read -r -p "Proceed with installation? [y/N] " answer
+    if [[ "${answer}" =~ ^[Yy]$ ]]; then
+        main
+        success "Done."
+        exit 0
+    fi
+    info "Cancelled."
+}
+
+interactive_set_comms()
+{
+    local answer
+    select_comms
+    if [ -z "${COMMS_METHOD}" ]; then
+        info "Communication method unchanged."
+        return
+    fi
+    read -r -p "Switch communication method to ${COMMS_METHOD}? [y/N] " answer
+    if [[ "${answer}" =~ ^[Yy]$ ]]; then
+        set_comms_method
+        exit 0
+    fi
+    COMMS_METHOD=""
+}
+
+interactive_menu()
+{
+    local choice
+    if [ ! -t 0 ]; then
+        usage
+        exit 1
+    fi
+    while true; do
+        header "TeamGloomy RRF upgrade v${VERSION}"
+        echo "  Installed DSF : $(get_installed_dsf_version)"
+        echo "  Channel       : $(get_current_channel)"
+        echo "  Comms         : $(get_current_comms)"
+        echo
+        echo "Select release channel:"
+        echo "  1) Stable (recommended)"
+        echo "  2) Unstable (bleeding edge)"
+        echo "  3) Switch SPI/USB communication"
+        echo "  4) Restart Duet services"
+        echo "  5) Exit"
+        read -r -p "Choose an option: " choice
+        case "${choice}" in
+            1) interactive_install stable ;;
+            2) interactive_install unstable ;;
+            3) interactive_set_comms ;;
+            4) restart_rrf_services ;;
+            5|q|Q) exit 0 ;;
+            *) warn "Invalid selection" ;;
+        esac
+    done
+}
+
 self-update "${ALL_ARGS[@]}"
 
-if [ "${ACTION}" == "set-comms" ]; then
+if [ "${ACTION}" == "interactive" ]; then
+    interactive_menu
+elif [ "${ACTION}" == "set-comms" ]; then
     set_comms_method
 else
     main
