@@ -1,5 +1,12 @@
 #!/bin/bash
-VERSION="0.1.0"
+VERSION="0.1.1"
+
+# Scripts up to 0.0.11 re-exec themselves after a self-update with all arguments merged into one
+# (e.g. "set-comms usb"), so split a single argument containing whitespace back into words
+if [ $# -eq 1 ] && [[ "$1" =~ [[:space:]] ]]; then
+    read -r -a SPLIT_ARGS <<< "$1"
+    set -- "${SPLIT_ARGS[@]}"
+fi
 
 SCRIPT_URL="https://raw.githubusercontent.com/TeamGloomy/rrf_stm32_sbc/master/armbian/userpatches/overlay/rrf_upgrade.sh"
 SCRIPT_LOCATION="${BASH_SOURCE[@]}"
