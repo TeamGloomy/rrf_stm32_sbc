@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.2.0"
+VERSION="0.2.1"
 
 # Scripts up to 0.0.11 re-exec themselves after a self-update with all arguments merged into one
 # (e.g. "set-comms usb"), so split a single argument containing whitespace back into words
@@ -138,6 +138,7 @@ restore_board_conf()
     sed -i -e 's|"GpioChipDevice": .*,|"GpioChipDevice": "'"${GPIO_CHIP_DEVICE}"'|g' "$DSF_CONF"
     sed -i -e 's|"TransferReadyPin": .*,|"TransferReadyPin": '"${TRANSFER_READY_PIN}"'|g' "$DSF_CONF"
     sed -i -e 's|"CommunicationMethod": .*,|"CommunicationMethod": "'"${COMMS_METHOD_CONF}"'|g' "$DSF_CONF"
+    [ "${COMMS_METHOD_CONF%%\"*}" == "usb" ] && set_usb_device
 
     # Update the package checksum as we could check if the configuration file was modified by the user on the next upgrade
     sed -i -e "s%.*opt/dsf/conf/config.json%$(md5sum /opt/dsf/conf/config.json | awk 'NR==1{print $1}')  opt/dsf/conf/config.json%g" /var/lib/dpkg/info/duetcontrolserver.md5sums
@@ -269,12 +270,24 @@ restart_rrf_services()
     success "Starting Duet services finished"
 }
 
+set_usb_device()
+{
+    local USB_DEVICE="/dev/serial/by-id/usb-Duet_3D_Duet-if02"
+    if grep -q '"UsbDevice"' "$DSF_CONF"; then
+        sed -i -e 's|"UsbDevice": .*,|"UsbDevice": "'"${USB_DEVICE}"'",|g' "$DSF_CONF"
+    else
+        # Not present in the config: add it right after CommunicationMethod
+        sed -i -e '/"CommunicationMethod":/a\  "UsbDevice": "'"${USB_DEVICE}"'",' "$DSF_CONF"
+    fi
+}
+
 set_comms_method()
 {
     header "Setting communication method to ${COMMS_METHOD}"
     stop_rrf_services
     cp "$DSF_CONF" "$DSF_CONF.bak"
     sed -i -e 's|"CommunicationMethod": .*,|"CommunicationMethod": "'"${COMMS_METHOD}"'",|g' "$DSF_CONF"
+    [ "${COMMS_METHOD}" == "usb" ] && set_usb_device
     restart_rrf_services
     success "Communication method set to ${COMMS_METHOD}"
 }
