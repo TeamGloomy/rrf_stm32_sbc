@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="0.2.1"
+VERSION="0.3.0"
 
 # Scripts up to 0.0.11 re-exec themselves after a self-update with all arguments merged into one
 # (e.g. "set-comms usb"), so split a single argument containing whitespace back into words
@@ -38,10 +38,12 @@ usage()
     echo "Usage: rrf_upgrade                     Interactive menu (choose channel and version)"
     echo "       rrf_upgrade <RRF_version> [--comms spi|usb]. Example: rrf_upgrade 3.4-b7 or rrf_upgrade latest-stable or rrf_upgrade latest-unstable"
     echo "       rrf_upgrade set-comms spi|usb    Switch the SPI/USB communication method without touching installed packages"
+    echo "       rrf_upgrade status               Print the installed versions, channel and comms as JSON"
+    echo "       rrf_upgrade versions [stable|unstable]  Print the available versions as JSON (switches the apt channel if one is given)"
 }
 
 if [ "${EUID}" -ne "0" ]; then
-    echo "This script requires root privileges, trying to use sudo"
+    echo "This script requires root privileges, trying to use sudo" >&2
     sudo "$0" "$@"
     exit $?
 fi
@@ -55,6 +57,14 @@ REPO_PREPARED=0
 
 if [ $# -eq 0 ]; then
     ACTION="interactive"
+elif [ "${ACTION}" == "status" ]; then
+    :
+elif [ "${ACTION}" == "versions" ]; then
+    CHANNEL="${2:-}"
+    if [ -n "${CHANNEL}" ] && [ "${CHANNEL}" != "stable" ] && [ "${CHANNEL}" != "unstable" ]; then
+        usage
+        exit 1
+    fi
 elif [ "${ACTION}" == "set-comms" ]; then
     COMMS_METHOD="$2"
     if [ "${COMMS_METHOD}" != "spi" ] && [ "${COMMS_METHOD}" != "usb" ]; then
@@ -468,6 +478,31 @@ list_dsf_versions()
     apt-cache madison duetsoftwareframework 2>/dev/null | awk '{print $3}' | sort -uV -r
 }
 
+# Machine readable output (for frontends such as a DWC plugin): JSON on stdout, nothing else
+print_status_json()
+{
+    local usb_device service="inactive"
+    usb_device="$(grep '"UsbDevice"' "$DSF_CONF" 2>/dev/null | awk -F'"' '{print $4}')"
+    systemctl is-active --quiet duetcontrolserver && service="active"
+    jq -n         --arg script "${VERSION}"         --arg dsf "$(get_installed_dsf_version)"         --arg rrf "$(dpkg-query -W -f='${Version}' reprapfirmware 2>/dev/null)"         --arg dwc "$(dpkg-query -W -f='${Version}' duetwebcontrol 2>/dev/null)"         --arg channel "$(get_current_channel)"         --arg comms "$(get_current_comms)"         --arg usb "${usb_device}"         --arg service "${service}"         '{scriptVersion: $script, dsfVersion: $dsf, rrfVersion: $rrf, dwcVersion: $dwc, channel: $channel,
+          communicationMethod: $comms, usbDevice: $usb, duetControlServer: $service}'
+}
+
+print_versions_json()
+{
+    local v
+    if [ -n "${CHANNEL}" ]; then
+        # Same repository switch the interactive menu does
+        add_duet_repo > /dev/null 2>&1
+        apt-get -q update > /dev/null 2>&1
+    else
+        CHANNEL="$(get_current_channel)"
+    fi
+    while read -r v; do
+        [ -n "$v" ] && jq -n --arg v "$v" --arg d "$(describe_dsf_version "$v")" '{version: $v, description: $d}'
+    done < <(list_dsf_versions) | jq -s --arg channel "${CHANNEL}" '{channel: $channel, versions: .}'
+}
+
 # Print the reprapfirmware and duetwebcontrol versions a given duetsoftwareframework version depends on
 describe_dsf_version()
 {
@@ -631,6 +666,15 @@ interactive_menu()
         esac
     done
 }
+
+# Machine readable actions must not print anything else, so they skip the self-update
+if [ "${ACTION}" == "status" ]; then
+    print_status_json
+    exit 0
+elif [ "${ACTION}" == "versions" ]; then
+    print_versions_json
+    exit 0
+fi
 
 self-update "${ALL_ARGS[@]}"
 

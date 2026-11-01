@@ -111,6 +111,8 @@ rrf_upgrade set-comms spi|usb
 | `<RRF_version>` | Install a specific version from the unstable channel, e.g. `3.4-b7`. Use the package version as listed by the interactive menu. |
 | `--comms spi\|usb` | Optional, used with a version. Also switch the communication method during the upgrade. If omitted, the current method is kept. |
 | `set-comms spi\|usb` | Only switch the communication method. No packages are installed or changed; the Duet services are restarted. |
+| `status` | Print the script, DSF, RRF and DWC versions, channel, communication method and DuetControlServer state as JSON. Skips the self-update so stdout is clean JSON. |
+| `versions [stable\|unstable]` | Print the available DSF versions (with their RRF/DWC versions) as JSON. With a channel it switches the apt repository to that channel first, like the interactive menu; without one it lists the current channel. |
 
 Examples:
 
